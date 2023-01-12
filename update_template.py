@@ -7,7 +7,6 @@ def main():
     project_dir = parse_command_line().project_dir
     print("Project directory set as:", project_dir)
 
-    # project_dir=os.path.normpath("/home/sven/rep/tmp/project1/wf1")
     fileList = os.listdir(project_dir)
 
     # get metafiles if none are present
@@ -59,6 +58,6 @@ def updateFile(f, project_dir):
     else:
         print('Nothing to update.')
 
-# wget https://raw.githubusercontent.com/core-unit-bioinformatics/template-metadata-files/main/CITATION.md
+
 if __name__ == "__main__":
     main()
