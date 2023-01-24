@@ -48,15 +48,30 @@ def updateFile(f, project_dir):
         print('File: ' + f + ' differs.')
         print('Local SHA checksum:  '+sha1Sum)
         print('Remote SHA checksum: '+sha1SumRef)
-        inp = input('Update?: (y/n)')
-        if inp == 'y':
-            command = ['wget',
-                       'https://raw.githubusercontent.com/core-unit-bioinformatics/template-metadata-files/main/'+f,
-                       '-O'+f]  # -O to overwrite existing file
-            sp.call(command, cwd=project_dir)
-            print('Updated!')
+        user_response = input('Update '+ f +'? (y/n)')  # remark: update what?
+        answers = {
+            "yes": True,
+            "y": True,
+            "yay": True,
+            "no": False,
+            "n": False,
+            "nay": False
+        }
+        try:
+            do_update = answers[user_response]
+        except KeyError:
+            raise ValueError(f"That was a yes or no question, but you answered: {user_response}")
+    
+        if do_update:
+                command = ['wget',
+                           'https://raw.githubusercontent.com/core-unit-bioinformatics/template-metadata-files/main/'+f,
+                           '-O'+f]  # -O to overwrite existing file
+                sp.call(command, cwd=project_dir)
+                print('Updated!')
+        else:
+            print('Nothing to update.')
     else:
-        print('Nothing to update.')
+            print('Nothing to update.')
 
 
 if __name__ == "__main__":
