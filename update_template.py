@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import subprocess as sp
 import argparse as argp
 
@@ -8,10 +9,8 @@ def main():
     print("Project directory set as:", project_dir)
     ref_repo_clone = parse_command_line().ref_repo_clone
 
-    fileList = os.listdir(project_dir)
-
     # get metafiles if none are present
-    if len(fileList) == 0:
+    if any(project_dir.iterdir())==False:
         clone(project_dir, ref_repo_clone)
     # update files
     else:
@@ -24,7 +23,7 @@ def parse_command_line():
     parser = argp.ArgumentParser()
     parser.add_argument(
         "project_dir",
-        type=str,
+        type=Path,
         help="Directory where metafiles should be copied/updated.",
     )
     parser.add_argument(
