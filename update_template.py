@@ -5,9 +5,10 @@ import argparse as argp
 
 
 def main():
-    project_dir = parse_command_line().project_dir
+    args=parse_command_line()
+    project_dir = args.project_dir
     print(f"Project directory set as: {project_dir}")
-    ref_repo_clone = parse_command_line().ref_repo_clone
+    ref_repo_clone = args.ref_repo_clone
 
     # get metafiles if none are present
     if any(project_dir.iterdir())==False:
