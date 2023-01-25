@@ -11,9 +11,9 @@ def main():
     ref_repo_clone = args.ref_repo_clone
 
     # get metafiles if none are present
-    if any(project_dir.iterdir())==False:
+    if not any(project_dir.iterdir()):
         clone(project_dir, ref_repo_clone)
-    # update files
+    # else update files
     else:
         files_to_update = ["CITATION.md"]
         [update_file(f, project_dir) for f in files_to_update]
