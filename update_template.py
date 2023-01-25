@@ -15,9 +15,7 @@ def main():
     # update files
     else:
         filesToUpdate = ["CITATION.md"]
-        for f in filesToUpdate:
-            updateFile(f, project_dir)
-
+        [updateFile(f, project_dir) for f in filesToUpdate]
 
 def parse_command_line():
     parser = argp.ArgumentParser()
