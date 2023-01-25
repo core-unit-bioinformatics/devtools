@@ -14,8 +14,8 @@ def main():
         clone(project_dir, ref_repo_clone)
     # update files
     else:
-        filesToUpdate = ["CITATION.md"]
-        [updateFile(f, project_dir) for f in filesToUpdate]
+        files_to_update = ["CITATION.md"]
+        [update_file(f, project_dir) for f in files_to_update]
 
 def parse_command_line():
     parser = argp.ArgumentParser()
@@ -29,7 +29,7 @@ def parse_command_line():
         type=str,
         nargs="?",
         default="git@github.com:core-unit-bioinformatics/template-metadata-files.git",
-        help="Reference/remote remote repository used to clone files.",
+        help="Reference/remote repository used to clone files.",
     )
     args = parser.parse_args()
     return args
@@ -52,7 +52,7 @@ def clone(project_dir, ref_repo_clone):  # copy all metafiles
 # remove .git .gitignore
 
 
-def updateFile(f, project_dir):
+def update_file(f, project_dir):
     command = ["git", "hash-object", os.path.join(project_dir, f)]
     sha1Sum = sp.run(
         command,
