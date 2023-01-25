@@ -6,7 +6,7 @@ import argparse as argp
 
 def main():
     project_dir = parse_command_line().project_dir
-    print("Project directory set as:", project_dir)
+    print(f"Project directory set as: {project_dir}")
     ref_repo_clone = parse_command_line().ref_repo_clone
 
     # get metafiles if none are present
@@ -76,12 +76,10 @@ def update_file(f, project_dir):
     )
     sha1SumRef = sha1SumRef.stdout.split('"')[11]
     if not sha1Sum == sha1SumRef:
-        print("File: " + f + " differs.")
-        print("Local SHA checksum:  " + sha1Sum)
-        print("Remote SHA checksum: " + sha1SumRef)
-        user_response = input(
-            "Update " + f + "? (y/n)"
-        )  # remark: update what?
+        print(f"File: {f} differs.")
+        print(f"Local SHA checksum: {sha1Sum}")
+        print(f"Remote SHA checksum: {sha1SumRef}")
+        user_response = input(f"Update {f}? (y/n)")
         answers = {
             "yes": True,
             "y": True,
