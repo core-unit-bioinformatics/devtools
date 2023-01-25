@@ -1,5 +1,5 @@
 import os
-from pathlib import Path
+import pathlib
 import subprocess as sp
 import argparse as argp
 
@@ -28,7 +28,7 @@ def parse_command_line():
     parser = argp.ArgumentParser()
     parser.add_argument(
         "project_dir",
-        type=Path,
+        type=pathlib.Path,
         help="Directory where metafiles should be copied/updated.",
     )
     parser.add_argument(
@@ -74,7 +74,7 @@ def clone(project_dir, ref_repo_clone):  # copy all metafiles
 
 
 def update_file(f, project_dir, ref_repo_curl, ref_repo_wget):
-    command = ["git", "hash-object", os.path.join(project_dir, f)]
+    command = ["git", "hash-object", project_dir.joinpath(f)]
     sha1Sum = sp.run(
         command,
         stdout=sp.PIPE,
