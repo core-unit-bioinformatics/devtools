@@ -5,10 +5,12 @@ import argparse as argp
 
 
 def main():
-    args=parse_command_line()
+    args = parse_command_line()
     project_dir = args.project_dir
     print(f"Project directory set as: {project_dir}")
     ref_repo_clone = args.ref_repo_clone
+    ref_repo_curl = args.ref_repo_curl
+    ref_repo_wget = args.ref_repo_wget
 
     # get metafiles if none are present
     if not any(project_dir.iterdir()):
@@ -16,7 +18,11 @@ def main():
     # else update files
     else:
         files_to_update = ["CITATION.md"]
-        [update_file(f, project_dir) for f in files_to_update]
+        [
+            update_file(f, project_dir, ref_repo_curl, ref_repo_wget)
+            for f in files_to_update
+        ]
+
 
 def parse_command_line():
     parser = argp.ArgumentParser()
@@ -31,6 +37,20 @@ def parse_command_line():
         nargs="?",
         default="git@github.com:core-unit-bioinformatics/template-metadata-files.git",
         help="Reference/remote repository used to clone files.",
+    )
+    parser.add_argument(
+        "ref_repo_curl",
+        type=str,
+        nargs="?",
+        default="https://api.github.com/repos/core-unit-bioinformatics/template-metadata-files/contents/",
+        help="Reference/remote repository used to curl files.",
+    )
+    parser.add_argument(
+        "ref_repo_wget",
+        type=str,
+        nargs="?",
+        default="https://raw.githubusercontent.com/core-unit-bioinformatics/template-metadata-files/main/",
+        help="Reference/remote repository used to wget files.",
     )
     args = parser.parse_args()
     return args
@@ -53,7 +73,7 @@ def clone(project_dir, ref_repo_clone):  # copy all metafiles
 # remove .git .gitignore
 
 
-def update_file(f, project_dir):
+def update_file(f, project_dir, ref_repo_curl, ref_repo_wget):
     command = ["git", "hash-object", os.path.join(project_dir, f)]
     sha1Sum = sp.run(
         command,
@@ -65,8 +85,7 @@ def update_file(f, project_dir):
     sha1Sum = sha1Sum.stdout.strip()
     command = [
         "curl",
-        "https://api.github.com/repos/core-unit-bioinformatics/template-metadata-files/contents/"
-        + f,
+        ref_repo_curl + f,
     ]
     sha1SumRef = sp.run(
         command,
@@ -99,8 +118,7 @@ def update_file(f, project_dir):
         if do_update:
             command = [
                 "wget",
-                "https://raw.githubusercontent.com/core-unit-bioinformatics/template-metadata-files/main/"
-                + f,
+                ref_repo_wget + f,
                 "-O" + f,
             ]  # -O to overwrite existing file
             sp.call(command, cwd=project_dir)
