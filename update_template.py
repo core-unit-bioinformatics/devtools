@@ -73,7 +73,7 @@ def clone(project_dir, ref_repo_clone):  # copy all metafiles
 # remove .git .gitignore
 
 
-def update_file(f, project_dir, ref_repo_curl, ref_repo_wget):
+def get_local_checksum(project_dir, f):
     command = ["git", "hash-object", project_dir.joinpath(f)]
     sha1Sum = sp.run(
         command,
@@ -82,7 +82,10 @@ def update_file(f, project_dir, ref_repo_curl, ref_repo_wget):
         universal_newlines=True,
         cwd=project_dir,
     )
-    sha1Sum = sha1Sum.stdout.strip()
+    return sha1Sum.stdout.strip()
+
+
+def get_ref_checksum(ref_repo_curl, f, project_dir):
     command = [
         "curl",
         ref_repo_curl + f,
@@ -94,11 +97,16 @@ def update_file(f, project_dir, ref_repo_curl, ref_repo_wget):
         universal_newlines=True,
         cwd=project_dir,
     )
-    sha1SumRef = sha1SumRef.stdout.split('"')[11]
-    if not sha1Sum == sha1SumRef:
+    return sha1SumRef.stdout.split('"')[11]
+
+
+def update_file(f, project_dir, ref_repo_curl, ref_repo_wget):
+    local_sum = get_local_checksum(project_dir, f)
+    ref_sum = get_ref_checksum(ref_repo_curl, f, project_dir)
+    if not local_sum == ref_sum:
         print(f"File: {f} differs.")
-        print(f"Local SHA checksum: {sha1Sum}")
-        print(f"Remote SHA checksum: {sha1SumRef}")
+        print(f"Local SHA checksum: {local_sum}")
+        print(f"Remote SHA checksum: {ref_sum}")
         user_response = input(f"Update {f}? (y/n)")
         answers = {
             "yes": True,
