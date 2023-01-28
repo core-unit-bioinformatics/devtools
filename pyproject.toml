@@ -1,0 +1,14 @@
+[cubi.devtools]
+pid = "undefined"
+version = "prototype"
+
+[cubi.metadata.naming.workflow.system]
+smk="snakemake"
+nxf="nextflow"
+cwl="common-workflow-language"
+wdl="workflow-definition-language"
+
+[cubi.metadata.naming.project.type]
+dev="development"
+run="production-run"
+bmk="benchmark"

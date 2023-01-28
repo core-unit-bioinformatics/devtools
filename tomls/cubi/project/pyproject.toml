@@ -1,0 +1,21 @@
+[cubi.project]
+pid = "undefined"
+type = "type"
+name = "undefined"
+start_date = 2000-01-01
+end_data = 2099-12-31
+
+[[cubi.project.workflow]]
+pid = "pid_a"
+name = "a"
+version = "version_a"
+
+[[cubi.project.workflow]]
+pid = "pid_b"
+name = "b"
+version = "version_b"
+
+[[cubi.project.workflow]]
+pid = "pid_c"
+name = "c"
+version = "version_c"

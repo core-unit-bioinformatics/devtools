@@ -1,0 +1,11 @@
+name: cubi_metadata
+dependencies:
+  - Python=3.9.*
+  - pip
+  - mamba=0.25.0
+  - pyyaml=6.0
+  - toml=0.10.2
+  - semver=2.13.0
+  - pylint=2.14.5
+  - isort=5.10.1
+  - black=22.6.0
