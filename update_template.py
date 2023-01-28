@@ -27,26 +27,26 @@ def main():
 def parse_command_line():
     parser = argp.ArgumentParser()
     parser.add_argument(
-        "project_dir",
+        "--project-dir",
         type=pathlib.Path,
         help="Directory where metafiles should be copied/updated.",
     )
     parser.add_argument(
-        "ref_repo_clone",
+        "--ref-repo-clone",
         type=str,
         nargs="?",
         default="git@github.com:core-unit-bioinformatics/template-metadata-files.git",
         help="Reference/remote repository used to clone files.",
     )
     parser.add_argument(
-        "ref_repo_curl",
+        "--ref-repo-curl",
         type=str,
         nargs="?",
         default="https://api.github.com/repos/core-unit-bioinformatics/template-metadata-files/contents/",
         help="Reference/remote repository used to curl files.",
     )
     parser.add_argument(
-        "ref_repo_wget",
+        "--ref-repo-wget",
         type=str,
         nargs="?",
         default="https://raw.githubusercontent.com/core-unit-bioinformatics/template-metadata-files/main/",
