@@ -1,9 +1,0 @@
-[cubi.workflow]
-pid = "undefined"
-name = "undefined"
-version = "prototype"
-
-[cubi.workflow.template]
-pid = "undefined"
-system = "system"
-version = "prototype"

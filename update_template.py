@@ -3,7 +3,8 @@ import pathlib
 import subprocess as sp
 import argparse as argp
 
-
+#add const answers
+#version update in toml
 def main():
     args = parse_command_line()
     project_dir = args.project_dir
@@ -17,7 +18,7 @@ def main():
         clone(project_dir, ref_repo_clone)
     # else update files
     else:
-        files_to_update = ["CITATION.md"]
+        files_to_update = ["CITATION.md"]#gitignore, licence
         [
             update_file(f, project_dir, ref_repo_curl, ref_repo_wget)
             for f in files_to_update
