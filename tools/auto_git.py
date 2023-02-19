@@ -5,9 +5,43 @@ import pathlib as pl
 import subprocess as sp
 import sys
 
-__version__ = "0.0.1"
+import toml
 
-#git@github.com:core-unit-bioinformatics/devtools.git
+
+def _extract_version():
+    """TODO
+    This function should be
+    moved into a common
+    package code base for all
+    devtools
+    """
+
+    script_location = pl.Path(__file__).resolve(strict=True)
+    repo_path = script_location.parent.parent
+    assert repo_path.name == "devtools"
+    pyproject_file = repo_path.joinpath("pyproject.toml").resolve(strict=True)
+    pyproject_desc = toml.load(pyproject_file)
+
+    script_version = None
+    for script_metadata in pyproject_desc["cubi"]["devtools"]["script"]:
+        if __prog__ == script_metadata["name"]:
+            script_version = script_metadata["version"]
+            break
+    if script_version is None:
+        err_msg = (
+            f"No version number defined for this script ({__prog__})\n"
+            f"in pyproject.toml located at {pyproject_file}!"
+        )
+        raise ValueError(err_msg)
+    return script_version
+
+
+__prog__ = "auto_git.py"
+__version__ = _extract_version()
+__author__ = "Peter Ebert"
+__license__ = "MIT"
+__full_version__ = f"{__prog__} v{__version__} ({__license__} license)"
+
 
 KNOWN_REMOTES = {
     "github.com": ("github", "core-unit-bioinformatics"),
@@ -17,13 +51,13 @@ KNOWN_REMOTES = {
 
 def parse_command_line():
 
-    parser = argp.ArgumentParser()
+    parser = argp.ArgumentParser(prog=__prog__)
     parser.add_argument(
         "--version",
         "-v",
         action="version",
-        default=__version__,
-        help="Show version and exit"
+        version=__full_version__,
+        help="Show version and exit."
     )
     mutex = parser.add_mutually_exclusive_group(required=True)
     mutex.add_argument(
@@ -154,10 +188,12 @@ def set_git_identity(git_infos, wd, id_folder, dry_run):
 def execute_command(cmd, wd, dry_run):
 
     if dry_run:
-        msg = "Would execute...\n"
-        msg += f"\tin directory: {wd}\n"
-        msg += f"\tthis command: {cmd}\n"
-        print(msg)
+        msg = (
+            "\nWould execute...\n"
+            f"\tin directory: {wd}\n"
+            f"\tthis command: {cmd}\n"
+        )
+        sys.stdout.write(msg)
     else:
         try:
             out = sp.check_output(cmd, shell=True, cwd=wd)
