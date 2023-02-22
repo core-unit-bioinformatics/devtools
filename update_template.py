@@ -1,5 +1,5 @@
-import os
 import pathlib
+import sys
 import subprocess as sp
 import argparse as argp
 
@@ -30,7 +30,8 @@ def parse_command_line():
     parser.add_argument(
         "--project-dir",
         type=pathlib.Path,
-        help="Directory where metafiles should be copied/updated.",
+        help="(Mandatory) Directory where metafiles should be copied/updated.",
+        required=True
     )
     parser.add_argument(
         "--ref-repo-clone",
@@ -53,7 +54,9 @@ def parse_command_line():
         default="https://raw.githubusercontent.com/core-unit-bioinformatics/template-metadata-files/main/",
         help="Reference/remote repository used to wget files.",
     )
-    args = parser.parse_args()
+    #if no arguments are given, print help
+    args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
+
     return args
 
 
