@@ -7,15 +7,18 @@ import argparse as argp
 #version update in toml
 def main():
     args = parse_command_line()
-    project_dir = args.project_dir
+    project_dir = args.project_dir.resolve()
     print(f"Project directory set as: {project_dir}")
     ref_repo_clone = args.ref_repo_clone
     ref_repo_curl = args.ref_repo_curl
     ref_repo_wget = args.ref_repo_wget
-
+    nf_core = args.nf_core
+    
+    #detect if its a nf-core workflow
+    nf_core=is_nf_core(project_dir,nf_core)
     # get metafiles if none are present
-    if not any(project_dir.iterdir()):
-        clone(project_dir, ref_repo_clone)
+    if not metadatafiles_present(project_dir, nf_core):
+        clone(project_dir, ref_repo_clone, nf_core)
     # else update files
     else:
         files_to_update = ["CITATION.md"]#gitignore, licence
@@ -54,25 +57,68 @@ def parse_command_line():
         default="https://raw.githubusercontent.com/core-unit-bioinformatics/template-metadata-files/main/",
         help="Reference/remote repository used to wget files.",
     )
+    parser.add_argument(
+        "--nf-core",
+        action=argp.BooleanOptionalAction,
+        default=True,
+        help="If False (default), metafiles are copied to project location, otherwise copied into a subfolder (CUBI).",
+    )
     #if no arguments are given, print help
     args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
 
     return args
 
-
-def clone(project_dir, ref_repo_clone):  # copy all metafiles
-    sp.call(
-        [
-            "git",
-            "clone",
-            "--depth=1",
-            "--branch=main",  # depth =1 to avoid big .git file
-            ref_repo_clone,
-            project_dir,
-        ],
-        cwd=project_dir,
-    )
-
+def is_nf_core(project_dir,nf_core):
+    print(f"Using the following path to detect nf-core workflow: {str(project_dir)}")
+    if not(nf_core):
+        return False
+    elif("nxf" in str(project_dir)):
+        print("Assuming nf-core workflow. You can change this with --nf-core=False")
+        return True
+    elif not("nxf" in str(project_dir)):
+        print("Assuming non nf-core workflow.")
+        return False
+        
+def metadatafiles_present(project_dir, nf_core):
+    if nf_core:
+        if pathlib.Path(project_dir,"CUBI").exists() and any(project_dir.iterdir()):
+            return True
+        else:
+            return False
+    else:
+        if not any(project_dir.iterdir()):
+            return False
+        else:
+            return True
+    
+def clone(project_dir, ref_repo_clone, nf_core):  # copy all metafiles
+    if not nf_core:
+        sp.call(
+            [
+                "git",
+                "clone",
+                "--depth=1",
+                "--branch=main",  # depth =1 to avoid big .git file
+                ref_repo_clone,
+                project_dir,
+            ],
+            cwd=project_dir,
+        )
+    else:
+        pathlib.Path(project_dir,"CUBI").mkdir(parents=True, exist_ok=True)
+        CUBI_path=pathlib.Path(project_dir,"CUBI")
+        sp.call(
+            [
+                "git",
+                "clone",
+                "--depth=1",
+                "--branch=main",  # depth =1 to avoid big .git file
+                ref_repo_clone,
+                CUBI_path,
+            ],
+            cwd=CUBI_path,
+        )
+        
 
 # remove .git .gitignore
 
