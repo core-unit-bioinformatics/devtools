@@ -303,7 +303,12 @@ def init_git(args):
         raise ValueError(
             f"Path already exists: {args.init}\nCannot initialize new git repo."
         )
-    args.init.mkdir(exist_ok=False, parents=True)
+    if args.dryrun:
+        cmd = f"mkdir -p {args.init}"
+        msg = f"\nWould create directory...\n\tin directory: {args.init.parent}\n\tthis command: {cmd}\n"
+        sys.stdout.write(msg)
+    else:
+        args.init.mkdir(exist_ok=False, parents=True)
     repo_wd = args.init
     cmd = " ".join(["git", "init", "--initial-branch=main"])
     _ = execute_command(cmd, repo_wd, args.dryrun)
