@@ -146,7 +146,7 @@ def parse_command_line():
                 f"{default_git_id_folder}"
             )
 
-    if args.init_preset == "githhu":
+    if args.init is not None and args.init_preset == "githhu":
         setattr(args, "no_all", True)
 
     return args
