@@ -4,8 +4,7 @@ import subprocess as sp
 import argparse as argp
 import toml
 
-# add const answers
-# version update in toml
+
 def main():
     args = parse_command_line()
     project_dir = args.project_dir.resolve()
@@ -13,16 +12,18 @@ def main():
     ref_repo_clone = args.ref_repo_clone
     ref_repo_curl = args.ref_repo_curl
     ref_repo_wget = args.ref_repo_wget
-    nf_core = args.nf_core
-#Path.cwd()
-    #report version of script
+    external = args.external
+
+    # report version of script
     if args.version:
         print(f"Script version: {report_script_version()}")
+
     # detect if its a nf-core workflow
-    nf_core = is_nf_core(project_dir, nf_core)
+    external = is_external(project_dir, external)
+
     # get metafiles if none are present
-    if not metadatafiles_present(project_dir, nf_core):
-        clone(project_dir, ref_repo_clone, nf_core)
+    if not metadatafiles_present(project_dir, external):
+        clone(project_dir, ref_repo_clone, external)
     # else update files
     else:
         files_to_update = ["CITATION.md"]  # gitignore, licence
@@ -62,14 +63,14 @@ def parse_command_line():
         help="Reference/remote repository used to wget files.",
     )
     parser.add_argument(
-        "--nf-core",
+        "--external",
         action=argp.BooleanOptionalAction,
         default=True,
         help="If True (default), metafiles are copied to a subfolder (cubi), else project location.",
     )
     parser.add_argument(
         "--version",
-        action='store_true',
+        action="store_true",
         help="Displays version of this script.",
     )
     # if no arguments are given, print help
@@ -80,24 +81,15 @@ def parse_command_line():
     return args
 
 
-def is_nf_core(project_dir, nf_core):
+def is_external(project_dir, external):
     print(
-        f"Using the following path to detect nf-core workflow: {str(project_dir)}"
+        "Assuming internal repository (workflow), you can change this with --external=False"
     )
-    if not (nf_core):
-        return False
-    elif "nxf" in str(project_dir):
-        print(
-            "Assuming nf-core workflow. You can change this with --nf-core=False"
-        )
-        return True
-    elif ("nxf" not in str(project_dir)):
-        print("Assuming non nf-core workflow.")
+    if not (external):
         return False
 
-
-def metadatafiles_present(project_dir, nf_core):
-    if nf_core:
+def metadatafiles_present(project_dir, external):
+    if external:
         if pathlib.Path(project_dir, "cubi").exists() and any(
             project_dir.iterdir()
         ):
@@ -111,8 +103,8 @@ def metadatafiles_present(project_dir, nf_core):
             return True
 
 
-def clone(project_dir, ref_repo_clone, nf_core):  # copy all metafiles
-    if not nf_core:
+def clone(project_dir, ref_repo_clone, external):  # copy all metafiles
+    if not external:
         sp.call(
             [
                 "git",
@@ -206,11 +198,15 @@ def update_file(f, project_dir, ref_repo_curl, ref_repo_wget):
     else:
         print("Nothing to update.")
 
+
 def report_script_version():
-    toml_file=pathlib.Path(pathlib.Path(__file__).resolve().parent, "pyproject.toml")
-    toml_file=toml.load(toml_file, _dict=dict)
-    version=toml_file["cubi"]["devtools"]["script"][0]["version"]    
+    toml_file = pathlib.Path(
+        pathlib.Path(__file__).resolve().parent, "pyproject.toml"
+    )
+    toml_file = toml.load(toml_file, _dict=dict)
+    version = toml_file["cubi"]["devtools"]["script"][0]["version"]
     return version
+
 
 if __name__ == "__main__":
     main()
