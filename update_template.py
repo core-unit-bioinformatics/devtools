@@ -2,6 +2,7 @@ import pathlib
 import sys
 import subprocess as sp
 import argparse as argp
+import toml
 
 # add const answers
 # version update in toml
@@ -13,7 +14,10 @@ def main():
     ref_repo_curl = args.ref_repo_curl
     ref_repo_wget = args.ref_repo_wget
     nf_core = args.nf_core
-
+#Path.cwd()
+    #report version of script
+    if args.version:
+        print(f"Script version: {report_script_version()}")
     # detect if its a nf-core workflow
     nf_core = is_nf_core(project_dir, nf_core)
     # get metafiles if none are present
@@ -63,6 +67,11 @@ def parse_command_line():
         default=True,
         help="If True (default), metafiles are copied to a subfolder (cubi), else project location.",
     )
+    parser.add_argument(
+        "--version",
+        action='store_true',
+        help="Displays version of this script.",
+    )
     # if no arguments are given, print help
     if len(sys.argv) == 1:
         parser.print_help()
@@ -82,7 +91,7 @@ def is_nf_core(project_dir, nf_core):
             "Assuming nf-core workflow. You can change this with --nf-core=False"
         )
         return True
-    elif not ("nxf" in str(project_dir)):
+    elif ("nxf" not in str(project_dir)):
         print("Assuming non nf-core workflow.")
         return False
 
@@ -164,7 +173,7 @@ def get_ref_checksum(ref_repo_curl, f, project_dir):
 def update_file(f, project_dir, ref_repo_curl, ref_repo_wget):
     local_sum = get_local_checksum(project_dir, f)
     ref_sum = get_ref_checksum(ref_repo_curl, f, project_dir)
-    if not local_sum == ref_sum:
+    if local_sum != ref_sum:
         print(f"File: {f} differs.")
         print(f"Local SHA checksum: {local_sum}")
         print(f"Remote SHA checksum: {ref_sum}")
@@ -197,6 +206,11 @@ def update_file(f, project_dir, ref_repo_curl, ref_repo_wget):
     else:
         print("Nothing to update.")
 
+def report_script_version():
+    toml_file=pathlib.Path(pathlib.Path(__file__).resolve().parent, "pyproject.toml")
+    toml_file=toml.load(toml_file, _dict=dict)
+    version=toml_file["cubi"]["devtools"]["script"][0]["version"]    
+    return version
 
 if __name__ == "__main__":
     main()
