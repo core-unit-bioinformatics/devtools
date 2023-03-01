@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import pathlib
 import sys
 import subprocess as sp
@@ -19,9 +21,10 @@ def main():
     if args.version:
         print(f"Script version: {report_script_version()}")
 
-    # detect if its a nf-core workflow
+    # detect if its a external workflow
     external = is_external(project_dir, external)
-
+    #detect any metadata_files
+    metadata_present=
     # initiate metadata files if none are present
     if not metadatafiles_present(project_dir, external):
         clone(project_dir, ref_repo_clone, external)
@@ -32,7 +35,7 @@ def main():
             "LICENSE",
             ".editorconfig",
             "pyproject.toml",
-        ]  # gitignore, licence	
+        ]  
         for f in files_to_update:
             print(f"{f} checking...")
             if f == "pyproject.toml":
