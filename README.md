@@ -5,7 +5,7 @@ external use.
 
 ## Tools
 
-- `tool name`: concise tool description
+- `auto_git.py`: automate init, clone and normalization of git repositories
 
 # Citation
 
