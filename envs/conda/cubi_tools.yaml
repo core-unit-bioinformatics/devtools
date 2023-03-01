@@ -1,7 +1,8 @@
-name: cubi_metadata
+name: cubi_tools
 dependencies:
   - Python=3.9.*
   - pip
+  - pipreqs=0.4.11
   - mamba=0.25.0
   - pyyaml=6.0
   - toml=0.10.2
