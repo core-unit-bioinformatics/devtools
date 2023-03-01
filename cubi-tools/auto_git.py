@@ -17,17 +17,17 @@ def _extract_version():
     This function should be
     moved into a common
     package code base for all
-    devtools
+    CUBI tools
     """
 
     script_location = pl.Path(__file__).resolve(strict=True)
     repo_path = script_location.parent.parent
-    assert repo_path.name == "devtools"
+    assert repo_path.name == "cubi-tools"
     pyproject_file = repo_path.joinpath("pyproject.toml").resolve(strict=True)
     pyproject_desc = toml.load(pyproject_file)
 
     script_version = None
-    for script_metadata in pyproject_desc["cubi"]["devtools"]["script"]:
+    for script_metadata in pyproject_desc["cubi"]["tools"]["script"]:
         if __prog__ == script_metadata["name"]:
             script_version = script_metadata["version"]
             break
