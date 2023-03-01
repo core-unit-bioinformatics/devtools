@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import pathlib
 import sys
 import subprocess as sp

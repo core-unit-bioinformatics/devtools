@@ -2,6 +2,10 @@
 pid = "https://github.com/core-unit-bioinformatics/cubi-tools"
 version = "prototype"
 
+[[cubi.tools.script]]
+name = "update_metadata.py"
+version = "0.0.1"
+
 [cubi.metadata]
 pid = "https://github.com/core-unit-bioinformatics/template-metadata-files"
 version = "1.4.0"
