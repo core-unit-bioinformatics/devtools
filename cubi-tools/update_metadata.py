@@ -17,7 +17,6 @@ def main():
     ref_repo_wget = args.ref_repo_wget
     external = args.external
 
-
     # report version of script
     if args.version:
         print(f"Script version: {report_script_version()}")
@@ -25,17 +24,17 @@ def main():
     # detect if its a external workflow
     external = is_external(external)
     if external:
-        metadata_dir=pathlib.Path(project_dir,"cubi")
+        metadata_dir = pathlib.Path(project_dir, "cubi")
         metadata_dir.mkdir(parents=True, exist_ok=True)
     else:
-        metadata_dir=project_dir
+        metadata_dir = project_dir
 
     files_to_update = [
         "CITATION.md",
         "LICENSE",
         ".editorconfig",
         "pyproject.toml",
-    ]  
+    ]
     print(f"Metadata directory set as: {metadata_dir}")
     for f in files_to_update:
         print(f"{f} checking...")
@@ -44,7 +43,11 @@ def main():
             if files_updated:
                 update_pyproject_toml(metadata_dir, ref_repo_wget)
         else:
-            files_updated=update_file(f, metadata_dir, ref_repo_curl, ref_repo_wget) or files_updated
+            files_updated = (
+                update_file(f, metadata_dir, ref_repo_curl, ref_repo_wget)
+                or files_updated
+            )
+
 
 def parse_command_line():
     parser = argp.ArgumentParser()
@@ -98,24 +101,19 @@ def parse_command_line():
 
 def is_external(external):
     print(f"external {external}")
-    if (external):
-        print(
-            "Assuming external repository (workflow)"
-
-        )
+    if external:
+        print("Assuming external repository (workflow)")
         return True
     else:
         print(
             "Assuming non-external repository (workflow), you can change this with --external"
-
         )
         return False
 
+
 def metadatafiles_present(project_dir, external):
     if external:
-        if pathlib.Path(project_dir, "cubi").exists() and any(
-            project_dir.iterdir()
-        ):
+        if pathlib.Path(project_dir, "cubi").exists() and any(project_dir.iterdir()):
             return True
         else:
             return False
@@ -124,8 +122,6 @@ def metadatafiles_present(project_dir, external):
             return False
         else:
             return True
-        
-
 
 
 def clone(project_dir, ref_repo_clone, external):  # copy all metafiles
@@ -203,11 +199,8 @@ def update_pyproject_toml(metadata_dir, ref_repo_wget):
         )
 
     if do_update:
-        if not pathlib.Path(metadata_dir,f).is_file():
-            command = [
-                "wget",
-                ref_repo_wget + f,
-                "-O" + f] 
+        if not pathlib.Path(metadata_dir, f).is_file():
+            command = ["wget", ref_repo_wget + f, "-O" + f]
             sp.call(command, cwd=metadata_dir)
         command = [
             "wget",
@@ -215,18 +208,17 @@ def update_pyproject_toml(metadata_dir, ref_repo_wget):
             "-O" + f + ".temp",
         ]  # -O to overwrite existing file
         sp.call(command, cwd=metadata_dir)
-        version_new = toml.load(
-            pathlib.Path(metadata_dir, f + ".temp"), _dict=dict
-        )
-        version_new = toml.load(pathlib.Path(metadata_dir, f+".temp"), _dict=dict)
+        version_new = toml.load(pathlib.Path(metadata_dir, f + ".temp"), _dict=dict)
+        version_new = toml.load(pathlib.Path(metadata_dir, f + ".temp"), _dict=dict)
         version_old = toml.load(pathlib.Path(metadata_dir, f), _dict=dict)
-        version_new=version_new["cubi"]["metadata"]["version"]
+        version_new = version_new["cubi"]["metadata"]["version"]
+        version_old_print = version_old["cubi"]["metadata"]["version"]
         version_old["cubi"]["metadata"]["version"] = version_new
         toml.dumps(version_old, encoder=None)
         with open(pathlib.Path(metadata_dir, f), "w") as text_file:
             text_file.write(toml.dumps(version_old, encoder=None))
-        pathlib.Path(metadata_dir, f+".temp").unlink()
-        print(f"{f} updated!")
+        pathlib.Path(metadata_dir, f + ".temp").unlink()
+        print(f"{f} updated from version {version_old_print} to version {version_new}!")
 
 
 def update_file(f, metadata_dir, ref_repo_curl, ref_repo_wget):
@@ -270,9 +262,7 @@ def update_file(f, metadata_dir, ref_repo_curl, ref_repo_wget):
 
 
 def report_script_version():
-    toml_file = pathlib.Path(
-        pathlib.Path(__file__).resolve().parent, "pyproject.toml"
-    )
+    toml_file = pathlib.Path(pathlib.Path(__file__).resolve().parent, "pyproject.toml")
     toml_file = toml.load(toml_file, _dict=dict)
     version = toml_file["cubi"]["devtools"]["script"][0]["version"]
     return version
