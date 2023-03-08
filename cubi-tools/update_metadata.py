@@ -17,34 +17,34 @@ def main():
     ref_repo_wget = args.ref_repo_wget
     external = args.external
 
+
     # report version of script
     if args.version:
         print(f"Script version: {report_script_version()}")
 
     # detect if its a external workflow
-    external = is_external(project_dir, external)
-    #detect any metadata_files
-    metadata_present=
-    # initiate metadata files if none are present
-    if not metadatafiles_present(project_dir, external):
-        clone(project_dir, ref_repo_clone, external)
-    # else update metadata files
+    external = is_external(external)
+    if external:
+        metadata_dir=pathlib.Path(project_dir,"cubi")
+        metadata_dir.mkdir(parents=True, exist_ok=True)
     else:
-        files_to_update = [
-            "CITATION.md",
-            "LICENSE",
-            ".editorconfig",
-            "pyproject.toml",
-        ]  
-        for f in files_to_update:
-            print(f"{f} checking...")
-            if f == "pyproject.toml":
-                print(f"files_updated? {files_updated}")
-                if files_updated:
-                    update_pyproject_toml(project_dir, ref_repo_wget)
-            else:
-                files_updated=files_updated or update_file(f, project_dir, ref_repo_curl, ref_repo_wget)
+        metadata_dir=project_dir
 
+    files_to_update = [
+        "CITATION.md",
+        "LICENSE",
+        ".editorconfig",
+        "pyproject.toml",
+    ]  
+    print(f"Metadata directory set as: {metadata_dir}")
+    for f in files_to_update:
+        print(f"{f} checking...")
+        if f == "pyproject.toml":
+            print(f"files_updated? {files_updated}")
+            if files_updated:
+                update_pyproject_toml(metadata_dir, ref_repo_wget)
+        else:
+            files_updated=update_file(f, metadata_dir, ref_repo_curl, ref_repo_wget) or files_updated
 
 def parse_command_line():
     parser = argp.ArgumentParser()
@@ -77,8 +77,10 @@ def parse_command_line():
     )
     parser.add_argument(
         "--external",
-        action=argp.BooleanOptionalAction,
-        default=True,
+        "-s",
+        action="store_true",
+        default=False,
+        dest="external",
         help="If True (default), metafiles are copied to a subfolder (cubi), else project location.",
     )
     parser.add_argument(
@@ -94,13 +96,20 @@ def parse_command_line():
     return args
 
 
-def is_external(project_dir, external):
-    print(
-        "Assuming internal repository (workflow), you can change this with --external=False"
-    )
-    if not (external):
-        return False
+def is_external(external):
+    print(f"external {external}")
+    if (external):
+        print(
+            "Assuming external repository (workflow)"
 
+        )
+        return True
+    else:
+        print(
+            "Assuming non-external repository (workflow), you can change this with --external"
+
+        )
+        return False
 
 def metadatafiles_present(project_dir, external):
     if external:
@@ -115,6 +124,8 @@ def metadatafiles_present(project_dir, external):
             return False
         else:
             return True
+        
+
 
 
 def clone(project_dir, ref_repo_clone, external):  # copy all metafiles
@@ -173,7 +184,7 @@ def get_ref_checksum(ref_repo_curl, f, project_dir):
     return sha1SumRef.stdout.split('"')[11]
 
 
-def update_pyproject_toml(project_dir, ref_repo_wget):
+def update_pyproject_toml(metadata_dir, ref_repo_wget):
     f = "pyproject.toml"
     user_response = input(f"Update metadata files version in {f}? (y/n)")
     answers = {
@@ -192,28 +203,35 @@ def update_pyproject_toml(project_dir, ref_repo_wget):
         )
 
     if do_update:
+        if not pathlib.Path(metadata_dir,f).is_file():
+            command = [
+                "wget",
+                ref_repo_wget + f,
+                "-O" + f] 
+            sp.call(command, cwd=metadata_dir)
         command = [
             "wget",
             ref_repo_wget + f,
             "-O" + f + ".temp",
         ]  # -O to overwrite existing file
-        sp.call(command, cwd=project_dir)
+        sp.call(command, cwd=metadata_dir)
         version_new = toml.load(
-            pathlib.Path(project_dir, f + ".temp"), _dict=dict
+            pathlib.Path(metadata_dir, f + ".temp"), _dict=dict
         )
-        version_old = toml.load(pathlib.Path(project_dir, f), _dict=dict)
-        version_new = toml.load(pathlib.Path(project_dir, f+".temp"), _dict=dict)
+        version_new = toml.load(pathlib.Path(metadata_dir, f+".temp"), _dict=dict)
+        version_old = toml.load(pathlib.Path(metadata_dir, f), _dict=dict)
         version_new=version_new["cubi"]["metadata"]["version"]
         version_old["cubi"]["metadata"]["version"] = version_new
         toml.dumps(version_old, encoder=None)
-        with open(pathlib.Path(project_dir, f), "w") as text_file:
+        with open(pathlib.Path(metadata_dir, f), "w") as text_file:
             text_file.write(toml.dumps(version_old, encoder=None))
+        pathlib.Path(metadata_dir, f+".temp").unlink()
         print(f"{f} updated!")
 
 
-def update_file(f, project_dir, ref_repo_curl, ref_repo_wget):
-    local_sum = get_local_checksum(project_dir, f)
-    ref_sum = get_ref_checksum(ref_repo_curl, f, project_dir)
+def update_file(f, metadata_dir, ref_repo_curl, ref_repo_wget):
+    local_sum = get_local_checksum(metadata_dir, f)
+    ref_sum = get_ref_checksum(ref_repo_curl, f, metadata_dir)
     if local_sum != ref_sum:
         print(f"File: {f} differs.")
         print(f"Local SHA checksum: {local_sum}")
@@ -240,7 +258,7 @@ def update_file(f, project_dir, ref_repo_curl, ref_repo_wget):
                 ref_repo_wget + f,
                 "-O" + f,
             ]  # -O to overwrite existing file
-            sp.call(command, cwd=project_dir)
+            sp.call(command, cwd=metadata_dir)
             print(f"{f} updated!")
             return True
         else:
