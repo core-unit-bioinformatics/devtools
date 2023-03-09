@@ -84,7 +84,7 @@ def parse_command_line():
         action="store_true",
         default=False,
         dest="external",
-        help="If True (default), metafiles are copied to a subfolder (cubi), else project location.",
+        help="If False (default), metafiles are copied to the project location, else to a subfolder (cubi).",
     )
     parser.add_argument(
         "--version",
