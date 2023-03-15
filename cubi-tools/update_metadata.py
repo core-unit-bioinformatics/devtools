@@ -50,11 +50,13 @@ def main():
 
 
 def parse_command_line():
-    parser = argp.ArgumentParser()
+    parser = argp.ArgumentParser(
+        description="Add or update metadata files for your repository. Example: python3 add-update-metadata.py --project-dir path/to/repo"
+    )
     parser.add_argument(
         "--project-dir",
         type=pathlib.Path,
-        help="(Mandatory) Directory where metafiles should be copied/updated.",
+        help="(Mandatory) Directory where metadata should be copied/updated.",
         required=True,
     )
     parser.add_argument(
@@ -100,7 +102,7 @@ def parse_command_line():
 
 
 def is_external(external):
-    print(f"external {external}")
+    print(f"External set as: {external}")
     if external:
         print("Assuming external repository (workflow)")
         return True
@@ -153,14 +155,14 @@ def clone(project_dir, ref_repo_clone, external):  # copy all metafiles
         )
 
 
-def get_local_checksum(project_dir, f):
-    command = ["git", "hash-object", project_dir.joinpath(f)]
+def get_local_checksum(metadata_dir, f):
+    command = ["git", "hash-object", metadata_dir.joinpath(f)]
     sha1Sum = sp.run(
         command,
         stdout=sp.PIPE,
         stderr=sp.PIPE,
         universal_newlines=True,
-        cwd=project_dir,
+        cwd=metadata_dir,
     )
     return sha1Sum.stdout.strip()
 
