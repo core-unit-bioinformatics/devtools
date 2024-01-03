@@ -24,16 +24,15 @@ def main():
     # detect if its a external workflow
     external = is_external(external)
     if external:
-        metadata_dir = pathlib.Path(project_dir, "cubi")
-        metadata_dir.mkdir(parents=True, exist_ok=True)
+        workflow_dir = pathlib.Path(project_dir, "cubi")
+        workflow_dir.mkdir(parents=True, exist_ok=True)
     else:
-        metadata_dir = project_dir
+        workflow_dir = project_dir
 
     files_to_update = [
         "CITATION.md",
         "LICENSE",
         ".editorconfig",
-        "pyproject.toml",
         "workflow/envs/exec_env.yaml",
         "workflow/envs/dev_env.yaml",
         "workflow/scripts/testing/test.py",
@@ -54,17 +53,18 @@ def main():
         "README.md",
         "config/testing/params_refcon.yaml",
         "config/parameter.yaml",
+        "pyproject.toml",
     ]
-    print(f"Metadata directory set as: {metadata_dir}")
+    print(f"Workflow directory set as: {workflow_dir}")
     for f in files_to_update:
         print(f"{f} checking...")
         if f == "pyproject.toml":
             print(f"files_updated? {files_updated}")
             if files_updated:
-                update_pyproject_toml(metadata_dir, ref_repo_wget)
+                update_pyproject_toml(workflow_dir, ref_repo_wget)
         else:
             files_updated = (
-                update_file(f, metadata_dir, ref_repo_curl, ref_repo_wget)
+                update_file(f, workflow_dir, ref_repo_curl, ref_repo_wget)
                 or files_updated
             )
 
@@ -133,7 +133,7 @@ def is_external(external):
         return False
 
 
-def metadatafiles_present(project_dir, external):
+def workflowfiles_present(project_dir, external):
     if external:
         if pathlib.Path(project_dir, "cubi").exists() and any(project_dir.iterdir()):
             return True
@@ -146,7 +146,7 @@ def metadatafiles_present(project_dir, external):
             return True
 
 
-def clone(project_dir, ref_repo_clone, external):  # copy all metafiles
+def clone(project_dir, ref_repo_clone, external):  # copy all workflow files
     if not external:
         sp.call(
             [
@@ -175,14 +175,14 @@ def clone(project_dir, ref_repo_clone, external):  # copy all metafiles
         )
 
 
-def get_local_checksum(metadata_dir, f):
-    command = ["git", "hash-object", metadata_dir.joinpath(f)]
+def get_local_checksum(workflow_dir, f):
+    command = ["git", "hash-object", workflow_dir.joinpath(f)]
     sha1Sum = sp.run(
         command,
         stdout=sp.PIPE,
         stderr=sp.PIPE,
         universal_newlines=True,
-        cwd=metadata_dir,
+        cwd=workflow_dir,
     )
     return sha1Sum.stdout.strip()
 
@@ -202,9 +202,9 @@ def get_ref_checksum(ref_repo_curl, f, project_dir):
     return sha1SumRef.stdout.split('"')[11]
 
 
-def update_pyproject_toml(metadata_dir, ref_repo_wget):
+def update_pyproject_toml(workflow_dir, ref_repo_wget):
     f = "pyproject.toml"
-    user_response = input(f"Update metadata files version in {f}? (y/n)")
+    user_response = input(f"Update workflow files version in {f}? (y/n)")
     answers = {
         "yes": True,
         "y": True,
@@ -223,31 +223,31 @@ def update_pyproject_toml(metadata_dir, ref_repo_wget):
         )
 
     if do_update:
-        if not pathlib.Path(metadata_dir, f).is_file():
+        if not pathlib.Path(workflow_dir, f).is_file():
             command = ["wget", ref_repo_wget + f, "-O" + f]
-            sp.call(command, cwd=metadata_dir)
+            sp.call(command, cwd=workflow_dir)
         command = [
             "wget",
             ref_repo_wget + f,
             "-O" + f + ".temp",
         ]  # -O to overwrite existing file
-        sp.call(command, cwd=metadata_dir)
-        version_new = toml.load(pathlib.Path(metadata_dir, f + ".temp"), _dict=dict)
-        version_new = toml.load(pathlib.Path(metadata_dir, f + ".temp"), _dict=dict)
-        version_old = toml.load(pathlib.Path(metadata_dir, f), _dict=dict)
-        version_new = version_new["cubi"]["metadata"]["version"]
-        version_old_print = version_old["cubi"]["metadata"]["version"]
-        version_old["cubi"]["metadata"]["version"] = version_new
+        sp.call(command, cwd=workflow_dir)
+        version_new = toml.load(pathlib.Path(workflow_dir, f + ".temp"), _dict=dict)
+        version_new = toml.load(pathlib.Path(workflow_dir, f + ".temp"), _dict=dict)
+        version_old = toml.load(pathlib.Path(workflow_dir, f), _dict=dict)
+        version_new = version_new["cubi"]["workflow"]["template"]["version"]
+        version_old_print = version_old["cubi"]["workflow"]["template"]["version"]
+        version_old["cubi"]["workflow"]["template"]["version"] = version_new
         toml.dumps(version_old, encoder=None)
-        with open(pathlib.Path(metadata_dir, f), "w") as text_file:
+        with open(pathlib.Path(workflow_dir, f), "w") as text_file:
             text_file.write(toml.dumps(version_old, encoder=None))
-        pathlib.Path(metadata_dir, f + ".temp").unlink()
+        pathlib.Path(workflow_dir, f + ".temp").unlink()
         print(f"{f} updated from version {version_old_print} to version {version_new}!")
 
 
-def update_file(f, metadata_dir, ref_repo_curl, ref_repo_wget):
-    local_sum = get_local_checksum(metadata_dir, f)
-    ref_sum = get_ref_checksum(ref_repo_curl, f, metadata_dir)
+def update_file(f, workflow_dir, ref_repo_curl, ref_repo_wget):
+    local_sum = get_local_checksum(workflow_dir, f)
+    ref_sum = get_ref_checksum(ref_repo_curl, f, workflow_dir)
     if local_sum != ref_sum:
         print(f"File: {f} differs.")
         print(f"Local SHA checksum: {local_sum}")
@@ -276,7 +276,7 @@ def update_file(f, metadata_dir, ref_repo_curl, ref_repo_wget):
                 ref_repo_wget + f,
                 "-O" + f,
             ]  # -O to overwrite existing file
-            sp.call(command, cwd=metadata_dir)
+            sp.call(command, cwd=workflow_dir)
             print(f"{f} updated!")
             return True
         else:
@@ -288,9 +288,9 @@ def update_file(f, metadata_dir, ref_repo_curl, ref_repo_wget):
 
 
 def report_script_version():
-    toml_file = pathlib.Path(pathlib.Path(__file__).resolve().parent, "pyproject.toml")
+    toml_file = pathlib.Path(pathlib.Path(__file__).resolve().parent.parent, "pyproject.toml")
     toml_file = toml.load(toml_file, _dict=dict)
-    version = toml_file["cubi"]["devtools"]["script"][0]["version"]
+    version = toml_file["cubi"]["tools"]["script"][0]["version"]
     return version
 
 

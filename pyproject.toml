@@ -3,7 +3,7 @@ pid = "https://github.com/core-unit-bioinformatics/cubi-tools"
 version = "prototype"
 
 [[cubi.tools.script]]
-name = "update_metadata.py"
+name = "update_workflow.py"
 version = "0.0.1"
 
 [cubi.metadata]
