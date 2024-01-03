@@ -34,6 +34,26 @@ def main():
         "LICENSE",
         ".editorconfig",
         "pyproject.toml",
+        "workflow/envs/exec_env.yaml",
+        "workflow/envs/dev_env.yaml",
+        "workflow/scripts/testing/test.py",
+        "workflow/rules/commons/20_config_options.smk",
+        "workflow/rules/commons/50_smkutils.smk",
+        "workflow/rules/commons/30_settings.smk",
+        "workflow/rules/commons/70_refcon.smk",
+        "workflow/rules/commons/90_staging.smk",
+        "workflow/rules/commons/10_constants.smk",
+        "workflow/rules/commons/40_pyutils.smk",
+        "workflow/rules/commons/00_commons.smk",
+        "init.py",
+        "docs/concepts/folders.md",
+        "docs/concepts/developing.md",
+        "docs/concepts/accounting.md",
+        "docs/concepts/running.md",
+        "docs/README.md",
+        "README.md",
+        "config/testing/params_refcon.yaml",
+        "config/parameter.yaml",
     ]
     print(f"Metadata directory set as: {metadata_dir}")
     for f in files_to_update:
@@ -51,33 +71,33 @@ def main():
 
 def parse_command_line():
     parser = argp.ArgumentParser(
-        description="Add or update metadata files for your repository. Example: python3 add-update-metadata.py --project-dir path/to/repo"
+        description="Update workflow files for your repository. Example: python3 update-workflow.py --project-dir path/to/repo"
     )
     parser.add_argument(
         "--project-dir",
         type=pathlib.Path,
-        help="(Mandatory) Directory where metadata should be copied/updated.",
+        help="(Mandatory) Directory where workflow should be updated.",
         required=True,
     )
     parser.add_argument(
         "--ref-repo-clone",
         type=str,
         nargs="?",
-        default="git@github.com:core-unit-bioinformatics/template-metadata-files.git",
+        default="git@github.com:core-unit-bioinformatics/template-snakemake.git",
         help="Reference/remote repository used to clone files.",
     )
     parser.add_argument(
         "--ref-repo-curl",
         type=str,
         nargs="?",
-        default="https://api.github.com/repos/core-unit-bioinformatics/template-metadata-files/contents/",
+        default="https://api.github.com/repos/core-unit-bioinformatics/template-snakemake/contents/",
         help="Reference/remote repository used to curl files.",
     )
     parser.add_argument(
         "--ref-repo-wget",
         type=str,
         nargs="?",
-        default="https://raw.githubusercontent.com/core-unit-bioinformatics/template-metadata-files/main/",
+        default="https://raw.githubusercontent.com/core-unit-bioinformatics/template-snakemake/main/",
         help="Reference/remote repository used to wget files.",
     )
     parser.add_argument(
@@ -86,7 +106,7 @@ def parse_command_line():
         action="store_true",
         default=False,
         dest="external",
-        help="If False (default), metafiles are copied to the project location, else to a subfolder (cubi).",
+        help="If False (default), workflow files are copied to the project location, else to a subfolder (cubi).",
     )
     parser.add_argument(
         "--version",
@@ -132,8 +152,8 @@ def clone(project_dir, ref_repo_clone, external):  # copy all metafiles
             [
                 "git",
                 "clone",
-                "--depth=1",
-                "--branch=main",  # depth =1 to avoid big .git file
+                "--depth=4",
+                "--branch=main",
                 ref_repo_clone,
                 project_dir,
             ],
@@ -146,8 +166,8 @@ def clone(project_dir, ref_repo_clone, external):  # copy all metafiles
             [
                 "git",
                 "clone",
-                "--depth=1",
-                "--branch=main",  # depth =1 to avoid big .git file
+                "--depth=4",
+                "--branch=main",
                 ref_repo_clone,
                 cubi_path,
             ],
@@ -179,6 +199,8 @@ def get_ref_checksum(ref_repo_curl, f, project_dir):
         universal_newlines=True,
         cwd=project_dir,
     )
+    print (sha1SumRef.stdout.split('"'))
+    print (sha1SumRef.stdout.split('"')[11])
     return sha1SumRef.stdout.split('"')[11]
 
 
@@ -188,9 +210,11 @@ def update_pyproject_toml(metadata_dir, ref_repo_wget):
     answers = {
         "yes": True,
         "y": True,
+        "Y":True,
         "yay": True,
         "no": False,
         "n": False,
+        "N": False,
         "nay": False,
     }
     try:
@@ -234,9 +258,11 @@ def update_file(f, metadata_dir, ref_repo_curl, ref_repo_wget):
         answers = {
             "yes": True,
             "y": True,
+            "Y":True,
             "yay": True,
             "no": False,
             "n": False,
+            "N": False,
             "nay": False,
         }
         try:
