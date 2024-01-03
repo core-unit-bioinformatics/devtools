@@ -199,8 +199,6 @@ def get_ref_checksum(ref_repo_curl, f, project_dir):
         universal_newlines=True,
         cwd=project_dir,
     )
-    print (sha1SumRef.stdout.split('"'))
-    print (sha1SumRef.stdout.split('"')[11])
     return sha1SumRef.stdout.split('"')[11]
 
 
