@@ -5,6 +5,7 @@ import sys
 import subprocess as sp
 import argparse as argp
 import toml
+import requests
 
 
 def main():
@@ -14,7 +15,16 @@ def main():
     print(f"Project directory set as: {project_dir}")
     ref_repo_clone = args.ref_repo_clone
     ref_repo_curl = args.ref_repo_curl
-    ref_repo_wget = args.ref_repo_wget
+    branch = args.branch
+    ref_repo_wget = args.ref_repo_wget + branch + "/"
+
+    #detect if branch exists
+    response = requests.get(f"{ref_repo_wget}README.md")
+    if response.status_code != 200:
+        raise Exception("That is not a valid branch or tag")
+    else:
+        pass
+
     external = args.external
 
     # report version of script
@@ -44,7 +54,7 @@ def main():
                 update_pyproject_toml(metadata_dir, ref_repo_wget)
         else:
             files_updated = (
-                update_file(f, metadata_dir, ref_repo_curl, ref_repo_wget)
+                update_file(f, metadata_dir, ref_repo_curl, branch, ref_repo_wget)
                 or files_updated
             )
 
@@ -77,7 +87,7 @@ def parse_command_line():
         "--ref-repo-wget",
         type=str,
         nargs="?",
-        default="https://raw.githubusercontent.com/core-unit-bioinformatics/template-metadata-files/main/",
+        default="https://raw.githubusercontent.com/core-unit-bioinformatics/template-metadata-files/",
         help="Reference/remote repository used to wget files.",
     )
     parser.add_argument(
@@ -87,6 +97,13 @@ def parse_command_line():
         default=False,
         dest="external",
         help="If False (default), metafiles are copied to the project location, else to a subfolder (cubi).",
+    )
+    parser.add_argument(
+        "--branch",
+        type=str,
+        nargs="?",
+        default="main",
+        help="Branch or Tag from which to update the files",
     )
     parser.add_argument(
         "--version",
@@ -126,14 +143,15 @@ def metadatafiles_present(project_dir, external):
             return True
 
 
-def clone(project_dir, ref_repo_clone, external):  # copy all metafiles
+def clone(project_dir, ref_repo_clone, branch, external):  # copy all metafiles
     if not external:
         sp.call(
             [
                 "git",
                 "clone",
-                "--depth=1",
-                "--branch=main",  # depth =1 to avoid big .git file
+                "--depth=1",# depth =1 to avoid big .git file
+                "--branch=",
+                branch,
                 ref_repo_clone,
                 project_dir,
             ],
@@ -146,8 +164,9 @@ def clone(project_dir, ref_repo_clone, external):  # copy all metafiles
             [
                 "git",
                 "clone",
-                "--depth=1",
-                "--branch=main",  # depth =1 to avoid big .git file
+                "--depth=1",# depth =1 to avoid big .git file
+                "--branch=",
+                branch,
                 ref_repo_clone,
                 cubi_path,
             ],
@@ -167,10 +186,10 @@ def get_local_checksum(metadata_dir, f):
     return sha1Sum.stdout.strip()
 
 
-def get_ref_checksum(ref_repo_curl, f, project_dir):
+def get_ref_checksum(ref_repo_curl, f, branch, project_dir):
     command = [
         "curl",
-        ref_repo_curl + f,
+        ref_repo_curl + f + "?ref=" + branch,
     ]
     sha1SumRef = sp.run(
         command,
@@ -223,9 +242,9 @@ def update_pyproject_toml(metadata_dir, ref_repo_wget):
         print(f"{f} updated from version {version_old_print} to version {version_new}!")
 
 
-def update_file(f, metadata_dir, ref_repo_curl, ref_repo_wget):
+def update_file(f, metadata_dir, ref_repo_curl, branch, ref_repo_wget):
     local_sum = get_local_checksum(metadata_dir, f)
-    ref_sum = get_ref_checksum(ref_repo_curl, f, metadata_dir)
+    ref_sum = get_ref_checksum(ref_repo_curl, f, branch, metadata_dir)
     if local_sum != ref_sum:
         print(f"File: {f} differs.")
         print(f"Local SHA checksum: {local_sum}")
@@ -264,9 +283,9 @@ def update_file(f, metadata_dir, ref_repo_curl, ref_repo_wget):
 
 
 def report_script_version():
-    toml_file = pathlib.Path(pathlib.Path(__file__).resolve().parent, "pyproject.toml")
+    toml_file = pathlib.Path(pathlib.Path(__file__).resolve().parent.parent, "pyproject.toml")
     toml_file = toml.load(toml_file, _dict=dict)
-    version = toml_file["cubi"]["devtools"]["script"][0]["version"]
+    version = toml_file["cubi"]["tools"]["script"][0]["version"]
     return version
 
 
