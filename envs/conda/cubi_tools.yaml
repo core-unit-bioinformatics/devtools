@@ -10,3 +10,4 @@ dependencies:
   - pylint=2.14.5
   - isort=5.10.1
   - black=22.6.0
+  - requests=2.25.1

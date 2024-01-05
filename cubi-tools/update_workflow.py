@@ -5,6 +5,7 @@ import sys
 import subprocess as sp
 import argparse as argp
 import toml
+import requests
 
 
 def main():
@@ -14,7 +15,16 @@ def main():
     print(f"Project directory set as: {project_dir}")
     ref_repo_clone = args.ref_repo_clone
     ref_repo_curl = args.ref_repo_curl
-    ref_repo_wget = args.ref_repo_wget
+    branch = args.branch
+    ref_repo_wget = args.ref_repo_wget + branch + "/"
+
+    #detect if branch exists
+    response = requests.get(f"{ref_repo_wget}README.md")
+    if response.status_code != 200:
+        raise Exception("That is not a valid branch or tag")
+    else:
+        pass
+
     external = args.external
 
     # report version of script
@@ -33,6 +43,17 @@ def main():
         "CITATION.md",
         "LICENSE",
         ".editorconfig",
+        "init.py",
+        "README.md",
+        "docs/concepts/folders.md",
+        "docs/concepts/developing.md",
+        "docs/concepts/accounting.md",
+        "docs/concepts/running.md",
+        "docs/README.md",
+        "config/testing/params_refcon.yaml",
+        "config/parameter.yaml",
+        "workflow/snaketests.smk",
+        "workflow/Snakefile",
         "workflow/envs/exec_env.yaml",
         "workflow/envs/dev_env.yaml",
         "workflow/scripts/testing/test.py",
@@ -44,15 +65,6 @@ def main():
         "workflow/rules/commons/10_constants.smk",
         "workflow/rules/commons/40_pyutils.smk",
         "workflow/rules/commons/00_commons.smk",
-        "init.py",
-        "docs/concepts/folders.md",
-        "docs/concepts/developing.md",
-        "docs/concepts/accounting.md",
-        "docs/concepts/running.md",
-        "docs/README.md",
-        "README.md",
-        "config/testing/params_refcon.yaml",
-        "config/parameter.yaml",
         "pyproject.toml",
     ]
     print(f"Workflow directory set as: {workflow_dir}")
@@ -64,7 +76,7 @@ def main():
                 update_pyproject_toml(workflow_dir, ref_repo_wget)
         else:
             files_updated = (
-                update_file(f, workflow_dir, ref_repo_curl, ref_repo_wget)
+                update_file(f, workflow_dir, ref_repo_curl, branch,  ref_repo_wget)
                 or files_updated
             )
 
@@ -97,7 +109,7 @@ def parse_command_line():
         "--ref-repo-wget",
         type=str,
         nargs="?",
-        default="https://raw.githubusercontent.com/core-unit-bioinformatics/template-snakemake/main/",
+        default="https://raw.githubusercontent.com/core-unit-bioinformatics/template-snakemake/",
         help="Reference/remote repository used to wget files.",
     )
     parser.add_argument(
@@ -107,6 +119,13 @@ def parse_command_line():
         default=False,
         dest="external",
         help="If False (default), workflow files are copied to the project location, else to a subfolder (cubi).",
+    )
+    parser.add_argument(
+        "--branch",
+        type=str,
+        nargs="?",
+        default="main",
+        help="Branch or Tag from which to update the files",
     )
     parser.add_argument(
         "--version",
@@ -146,14 +165,15 @@ def workflowfiles_present(project_dir, external):
             return True
 
 
-def clone(project_dir, ref_repo_clone, external):  # copy all workflow files
+def clone(project_dir, ref_repo_clone, branch, external):  # copy all workflow files
     if not external:
         sp.call(
             [
                 "git",
                 "clone",
-                "--depth=4",
-                "--branch=main",
+                "--depth=1",# depth =1 to avoid big .git file
+                "--branch=",
+                branch,
                 ref_repo_clone,
                 project_dir,
             ],
@@ -166,8 +186,9 @@ def clone(project_dir, ref_repo_clone, external):  # copy all workflow files
             [
                 "git",
                 "clone",
-                "--depth=4",
-                "--branch=main",
+                "--depth=1",# depth =1 to avoid big .git file
+                "--branch=",
+                branch,
                 ref_repo_clone,
                 cubi_path,
             ],
@@ -187,10 +208,10 @@ def get_local_checksum(workflow_dir, f):
     return sha1Sum.stdout.strip()
 
 
-def get_ref_checksum(ref_repo_curl, f, project_dir):
+def get_ref_checksum(ref_repo_curl, f, branch, project_dir):
     command = [
         "curl",
-        ref_repo_curl + f,
+        ref_repo_curl + f + "?ref=" + branch,
     ]
     sha1SumRef = sp.run(
         command,
@@ -245,9 +266,9 @@ def update_pyproject_toml(workflow_dir, ref_repo_wget):
         print(f"{f} updated from version {version_old_print} to version {version_new}!")
 
 
-def update_file(f, workflow_dir, ref_repo_curl, ref_repo_wget):
+def update_file(f, workflow_dir, ref_repo_curl, branch, ref_repo_wget):
     local_sum = get_local_checksum(workflow_dir, f)
-    ref_sum = get_ref_checksum(ref_repo_curl, f, workflow_dir)
+    ref_sum = get_ref_checksum(ref_repo_curl, f, branch, workflow_dir)
     if local_sum != ref_sum:
         print(f"File: {f} differs.")
         print(f"Local SHA checksum: {local_sum}")
@@ -256,7 +277,7 @@ def update_file(f, workflow_dir, ref_repo_curl, ref_repo_wget):
         answers = {
             "yes": True,
             "y": True,
-            "Y":True,
+            "Y": True,
             "yay": True,
             "no": False,
             "n": False,
