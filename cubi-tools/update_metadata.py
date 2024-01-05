@@ -207,9 +207,11 @@ def update_pyproject_toml(metadata_dir, ref_repo_wget):
     answers = {
         "yes": True,
         "y": True,
+        "Y": True,
         "yay": True,
         "no": False,
         "n": False,
+        "N": False,
         "nay": False,
     }
     try:
@@ -253,9 +255,11 @@ def update_file(f, metadata_dir, ref_repo_curl, branch, ref_repo_wget):
         answers = {
             "yes": True,
             "y": True,
+            "Y": True,
             "yay": True,
             "no": False,
             "n": False,
+            "N": False,
             "nay": False,
         }
         try:
