@@ -5,26 +5,17 @@ import sys
 import subprocess as sp
 import argparse as argp
 import toml
-import requests
 
 
 def main():
+    """Description of what this function does."""
     files_updated = False
     args = parse_command_line()
     project_dir = args.project_dir.resolve()
     print(f"Project directory set as: {project_dir}")
-    ref_repo_clone = args.ref_repo_clone
     ref_repo_curl = args.ref_repo_curl
     branch = args.branch
     ref_repo_wget = args.ref_repo_wget + branch + "/"
-
-    #detect if branch exists
-    response = requests.get(f"{ref_repo_wget}README.md")
-    if response.status_code != 200:
-        raise Exception("That is not a valid branch or tag")
-    else:
-        pass
-
     external = args.external
 
     # report version of script
@@ -46,22 +37,28 @@ def main():
         "pyproject.toml",
     ]
     print(f"Metadata directory set as: {metadata_dir}")
+
     for f in files_to_update:
         print(f"{f} checking...")
+        files_updated = update_file(f, metadata_dir, ref_repo_curl, branch, ref_repo_wget)
+        update_file(f, metadata_dir, ref_repo_curl, branch, ref_repo_wget)
         if f == "pyproject.toml":
             print(f"files_updated? {files_updated}")
             if files_updated:
-                update_pyproject_toml(metadata_dir, ref_repo_wget)
+                update_pyproject_toml(metadata_dir, ref_repo_wget, ref_repo_curl, branch, f)
         else:
             files_updated = (
                 update_file(f, metadata_dir, ref_repo_curl, branch, ref_repo_wget)
                 or files_updated
             )
+    return None
 
 
 def parse_command_line():
+    """Description of what this function does."""
     parser = argp.ArgumentParser(
-        description="Add or update metadata files for your repository. Example: python3 add-update-metadata.py --project-dir path/to/repo"
+        description="Add or update metadata files for your repository. "\
+            "Example: python3 add-update-metadata.py --project-dir path/to/repo"
     )
     parser.add_argument(
         "--project-dir",
@@ -92,11 +89,11 @@ def parse_command_line():
     )
     parser.add_argument(
         "--external",
-        "-s",
         action="store_true",
         default=False,
         dest="external",
-        help="If False (default), metafiles are copied to the project location, else to a subfolder (cubi).",
+        help="If False (default), metafiles are copied to the project location,"\
+             "else to a subfolder (cubi).",
     )
     parser.add_argument(
         "--branch",
@@ -119,18 +116,21 @@ def parse_command_line():
 
 
 def is_external(external):
+    """Description of what this function does."""
     print(f"External set as: {external}")
     if external:
         print("Assuming external repository (workflow)")
         return True
     else:
         print(
-            "Assuming non-external repository (workflow), you can change this with --external"
+            "Assuming non-external repository (workflow),"\
+            "you can change this with --external"
         )
         return False
 
 
 def metadatafiles_present(project_dir, external):
+    """Description of what this function does."""
     if external:
         if pathlib.Path(project_dir, "cubi").exists() and any(project_dir.iterdir()):
             return True
@@ -143,108 +143,54 @@ def metadatafiles_present(project_dir, external):
             return True
 
 
-def clone(project_dir, ref_repo_clone, branch, external):  # copy all metafiles
-    if not external:
-        sp.call(
-            [
-                "git",
-                "clone",
-                "--depth=1",# depth =1 to avoid big .git file
-                "--branch=",
-                branch,
-                ref_repo_clone,
-                project_dir,
-            ],
-            cwd=project_dir,
-        )
-    else:
-        pathlib.Path(project_dir, "cubi").mkdir(parents=True, exist_ok=True)
-        cubi_path = pathlib.Path(project_dir, "cubi")
-        sp.call(
-            [
-                "git",
-                "clone",
-                "--depth=1",# depth =1 to avoid big .git file
-                "--branch=",
-                branch,
-                ref_repo_clone,
-                cubi_path,
-            ],
-            cwd=cubi_path,
-        )
-
-
 def get_local_checksum(metadata_dir, f):
+    """Description of what this function does."""
     command = ["git", "hash-object", metadata_dir.joinpath(f)]
-    sha1Sum = sp.run(
+    sha1sum = sp.run(
         command,
         stdout=sp.PIPE,
         stderr=sp.PIPE,
         universal_newlines=True,
         cwd=metadata_dir,
+        check=False,
     )
-    return sha1Sum.stdout.strip()
+    return sha1sum.stdout.strip()
 
 
 def get_ref_checksum(ref_repo_curl, f, branch, project_dir):
+    """Description of what this function does."""
     command = [
         "curl",
         ref_repo_curl + f + "?ref=" + branch,
     ]
-    sha1SumRef = sp.run(
+    sha1sumref = sp.run(
         command,
         stdout=sp.PIPE,
         stderr=sp.PIPE,
         universal_newlines=True,
         cwd=project_dir,
+        check=False,
     )
-    return sha1SumRef.stdout.split('"')[11]
-
-
-def update_pyproject_toml(metadata_dir, ref_repo_wget):
-    f = "pyproject.toml"
-    user_response = input(f"Update metadata files version in {f}? (y/n)")
-    answers = {
-        "yes": True,
-        "y": True,
-        "Y": True,
-        "yay": True,
-        "no": False,
-        "n": False,
-        "N": False,
-        "nay": False,
-    }
-    try:
-        do_update = answers[user_response]
-    except KeyError:
-        raise ValueError(
-            f"That was a yes or no question, but you answered: {user_response}"
+    sha1_output = sha1sumref.stdout
+    api_issue = "API rate limit"
+    if api_issue in sha1_output:
+        raise Exception(
+            "API rate limit exceeded. You have to wait until you can connect to the repository again!"
         )
-
-    if do_update:
-        if not pathlib.Path(metadata_dir, f).is_file():
-            command = ["wget", ref_repo_wget + f, "-O" + f]
-            sp.call(command, cwd=metadata_dir)
-        command = [
-            "wget",
-            ref_repo_wget + f,
-            "-O" + f + ".temp",
-        ]  # -O to overwrite existing file
-        sp.call(command, cwd=metadata_dir)
-        version_new = toml.load(pathlib.Path(metadata_dir, f + ".temp"), _dict=dict)
-        version_new = toml.load(pathlib.Path(metadata_dir, f + ".temp"), _dict=dict)
-        version_old = toml.load(pathlib.Path(metadata_dir, f), _dict=dict)
-        version_new = version_new["cubi"]["metadata"]["version"]
-        version_old_print = version_old["cubi"]["metadata"]["version"]
-        version_old["cubi"]["metadata"]["version"] = version_new
-        toml.dumps(version_old, encoder=None)
-        with open(pathlib.Path(metadata_dir, f), "w") as text_file:
-            text_file.write(toml.dumps(version_old, encoder=None))
-        pathlib.Path(metadata_dir, f + ".temp").unlink()
-        print(f"{f} updated from version {version_old_print} to version {version_new}!")
+    try:
+        sha1_checksum = sha1sumref.stdout.split('"')[
+            11
+        ]  # The output of this command is the sha1 checksum for the file to update
+    except IndexError as exc:
+        raise IndexError(
+            f"{branch} is not a valid branch/tag in this repository or"/
+             "{f} doesn't exist in this branch/tag"
+        ) from exc
+    return sha1_checksum
 
 
 def update_file(f, metadata_dir, ref_repo_curl, branch, ref_repo_wget):
+    """Description of what this function does."""
     local_sum = get_local_checksum(metadata_dir, f)
     ref_sum = get_ref_checksum(ref_repo_curl, f, branch, metadata_dir)
     if local_sum != ref_sum:
@@ -264,10 +210,10 @@ def update_file(f, metadata_dir, ref_repo_curl, branch, ref_repo_wget):
         }
         try:
             do_update = answers[user_response]
-        except KeyError:
+        except KeyError as exc:
             raise ValueError(
                 f"That was a yes or no question, but you answered: {user_response}"
-            )
+            ) from exc
 
         if do_update:
             command = [
@@ -280,14 +226,62 @@ def update_file(f, metadata_dir, ref_repo_curl, branch, ref_repo_wget):
             return True
         else:
             return False
-            print(f"{f} nothing to update.")
     else:
         return False
-        print("f{f} nothing to update.")
 
+def update_pyproject_toml(metadata_dir, ref_repo_wget, ref_repo_curl, branch, f):
+    """Description of what this function does."""
+    updates = update_file(f, metadata_dir, ref_repo_curl, branch, ref_repo_wget)
+    if updates == True:
+        file = "pyproject.toml"
+        user_response = input(f"Update metadata files version in {file}? (y/n)")
+        answers = {
+            "yes": True,
+            "y": True,
+            "Y": True,
+            "yay": True,
+            "no": False,
+            "n": False,
+            "N": False,
+            "nay": False,
+        }
+        try:
+            do_update = answers[user_response]
+        except KeyError as exc:
+            raise ValueError(
+                f"That was a yes or no question, but you answered: {user_response}"
+            ) from exc
+
+        if do_update:
+            if not pathlib.Path(metadata_dir, file).is_file():
+                command = ["wget", ref_repo_wget + file, "-O" + file]
+                sp.call(command, cwd=metadata_dir)
+            command = [
+                "wget",
+                ref_repo_wget + file,
+                "-O" + file + ".temp",
+            ]  # -O to overwrite existing file
+            sp.call(command, cwd=metadata_dir)
+            version_new = toml.load(pathlib.Path(metadata_dir, file + ".temp"), _dict=dict)
+            version_old = toml.load(pathlib.Path(metadata_dir, file), _dict=dict)
+            version_new = version_new["cubi"]["metadata"]["version"]
+            version_old_print = version_old["cubi"]["metadata"]["version"]
+            version_old["cubi"]["metadata"]["version"] = version_new
+            toml.dumps(version_old, encoder=None)
+            with open(pathlib.Path(metadata_dir, file), "w", encoding="utf-8") as text_file:
+                text_file.write(toml.dumps(version_old, encoder=None))
+            pathlib.Path(metadata_dir, file + ".temp").unlink()
+            print(f"{file} updated from version {version_old_print} to version {version_new}!")
+            return True
+        return True
+    else:
+        return False
 
 def report_script_version():
-    toml_file = pathlib.Path(pathlib.Path(__file__).resolve().parent.parent, "pyproject.toml")
+    """Description of what this function does."""
+    toml_file = pathlib.Path(
+        pathlib.Path(__file__).resolve().parent.parent, "pyproject.toml"
+    )
     toml_file = toml.load(toml_file, _dict=dict)
     version = toml_file["cubi"]["tools"]["script"][0]["version"]
     return version
