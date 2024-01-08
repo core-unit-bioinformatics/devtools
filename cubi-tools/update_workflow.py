@@ -114,7 +114,6 @@ def parse_command_line():
     )
     parser.add_argument(
         "--external",
-        "-s",
         action="store_true",
         default=False,
         dest="external",
@@ -253,7 +252,6 @@ def update_pyproject_toml(workflow_dir, ref_repo_wget):
             "-O" + f + ".temp",
         ]  # -O to overwrite existing file
         sp.call(command, cwd=workflow_dir)
-        version_new = toml.load(pathlib.Path(workflow_dir, f + ".temp"), _dict=dict)
         version_new = toml.load(pathlib.Path(workflow_dir, f + ".temp"), _dict=dict)
         version_old = toml.load(pathlib.Path(workflow_dir, f), _dict=dict)
         version_new = version_new["cubi"]["workflow"]["template"]["version"]
