@@ -7,7 +7,8 @@ import argparse as argp
 import hashlib
 import toml
 
-sys.tracebacklimit = -1
+# sys.tracebacklimit = -1
+
 
 def main():
     """
@@ -15,6 +16,11 @@ def main():
     """
 
     args = parse_command_line()
+    dryrun = args.dryrun
+
+    # Is it a dry run?
+    if dryrun:
+        print("\nTHIS IS A DRY RUN!!")
 
     # report version of script
     if args.version:
@@ -27,23 +33,28 @@ def main():
     external = args.external
     keep = args.keep
 
+    # location of the temp folder holding branch/version tag of interest
     temp_folder = pathlib.Path(f"{project_dir}/temp/{source}")
 
     # detect if its a external workflow
     if external:
+        metadata_dir = external_repo(project_dir, external, dryrun)
         print(f"\nExternal set as: {external}\n")
-        metadata_dir = pathlib.Path(project_dir, "cubi")
-        metadata_dir.mkdir(parents=True, exist_ok=True)
+        print(
+            f"Metadata source directory set as: {external_repo(project_dir, external, dryrun)}\n"
+        )
     else:
-        metadata_dir = project_dir
-    print(f"Metadata directory set as: {metadata_dir}\n")
+        metadata_dir = external_repo(project_dir, external, dryrun)
+        print(
+            f"Metadata source directory set as: {external_repo(project_dir, external, dryrun)}\n"
+        )
 
     # Clone the 'template-metadata-files' branch or version tag into a local temp folder if it exists
     try:
-        clone(project_dir, ref_repo, source, temp_folder)
+        clone(project_dir, ref_repo, source, temp_folder, dryrun)
     except AssertionError:
         raise AssertionError(
-            f"Either the repo '{ref_repo}' or the branch or version tag named '{source}' doesn't exist"
+            f"The repository you entered or the branch or version tag named '{source}' doesn't exist"
         ) from None
 
     # files that will be updated
@@ -58,9 +69,9 @@ def main():
     for f in files_to_update:
         print(f"{f} checking...")
         if f == "pyproject.toml":
-            update_pyproject_toml(metadata_dir, temp_folder)
+            update_pyproject_toml(metadata_dir, temp_folder, dryrun)
         else:
-            update_file(f, metadata_dir, temp_folder)
+            update_file(f, metadata_dir, temp_folder, dryrun)
 
     # detect if metafiles temp folder should be kept
     if keep:
@@ -69,7 +80,7 @@ def main():
             f"It's located at {temp_folder}"
         )
     else:
-        rm_temp(temp_folder.parent)
+        rm_temp(temp_folder.parent, dryrun)
         print("\nThe temp folder with all metadata files and folders has been deleted!")
 
     return None
@@ -106,6 +117,7 @@ def parse_command_line():
     )
     parser.add_argument(
         "--source",
+        "-s",
         type=str,
         nargs="?",
         default="main",
@@ -113,11 +125,22 @@ def parse_command_line():
     )
     parser.add_argument(
         "--keep",
+        "-k",
         action="store_true",
         default=False,
         dest="keep",
         help="If False (default), the metafiles source repo will be deleted when script finishes,"
         "else it will be kept.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        "--dryrun",
+        "-d",
+        "-dry",
+        action="store_true",
+        default=False,
+        dest="dryrun",
+        help="Just print what you would do, but don't do it",
     )
     parser.add_argument(
         "--version",
@@ -132,7 +155,7 @@ def parse_command_line():
     return args
 
 
-def clone(metadata_dir, ref_repo, source, temp_folder):
+def clone(metadata_dir, ref_repo, source, temp_folder, dryrun):
     """
     Check if the branch or version tag that contains the desired metadata files
     is already in a temp folder within the project directory.
@@ -142,42 +165,52 @@ def clone(metadata_dir, ref_repo, source, temp_folder):
     If a temp folder for the branch or version tag exists this folder is getting updated via
     a git pull command.
     """
-    if not temp_folder.is_dir():
-        command = [
-            "git",
-            "clone",
-            "-q",
-            "-c advice.detachedHead=false",
-            "--depth=1",  # depth =1 to avoid big .git file
-            "--branch",
-            source,
-            ref_repo,
-            temp_folder,
-        ]
-        clone_cmd = sp.run(
-            command,
-            stdout=sp.PIPE,
-            stderr=sp.PIPE,
-            cwd=metadata_dir,
-            check=False,
-        )
-        #Git will throw a error message if you try to clone a repo/branch/tag that doesn't exist
-        #that contains the string 'fatal:'
-        warning = "fatal:"
-        assert warning not in str(clone_cmd.stderr.strip())
+    if dryrun:
+        if not temp_folder.is_dir():
+            print(
+                f"The requested branch/version tag (default: main) is being copied to {temp_folder}."
+            )
+        else:
+            print(
+                "The requested branch/version tag (default: main) already exists and is getting updated."
+            )
     else:
-        command = [
-            "git",
-            "pull",
-            "--all",
-            "-q",
-            "--depth=1",  # depth =1 to avoid big .git file
-        ]
-        sp.run(
-            command,
-            cwd=temp_folder,
-            check=False,
-        )
+        if not temp_folder.is_dir():
+            command = [
+                "git",
+                "clone",
+                "-q",
+                "-c advice.detachedHead=false",
+                "--depth=1",  # depth =1 to avoid big .git file
+                "--branch",
+                source,
+                ref_repo,
+                temp_folder,
+            ]
+            clone_cmd = sp.run(
+                command,
+                stdout=sp.PIPE,
+                stderr=sp.PIPE,
+                cwd=metadata_dir,
+                check=False,
+            )
+            # Git will throw a error message if you try to clone a repo/branch/tag
+            # that doesn't exist that contains the string 'fatal:'
+            warning = "fatal:"
+            assert warning not in str(clone_cmd.stderr.strip())
+        else:
+            command = [
+                "git",
+                "pull",
+                "--all",
+                "-q",
+                "--depth=1",  # depth =1 to avoid big .git file
+            ]
+            sp.run(
+                command,
+                cwd=temp_folder,
+                check=False,
+            )
     return None
 
 
@@ -208,34 +241,37 @@ def get_ref_checksum(temp_folder, f):
     return md5_ref
 
 
-def update_file(f, metadata_dir, temp_folder):
+def update_file(f, metadata_dir, temp_folder, dryrun):
     """
     The MD5 checksum of the the local metadata file(s) and the metadata file(s) in the desired
     branch or version tag are being compared. If they differ a question to update for each different
     metadata file pops up. If an update is requested it will be performed.
     """
-    local_sum = get_local_checksum(metadata_dir, f)
-    ref_sum = get_ref_checksum(temp_folder, f)
-    if local_sum != ref_sum:
-        print(f"File: {f} differs.")
-        print(f"Local MD5 checksum: {local_sum}")
-        print(f"Remote MD5 checksum: {ref_sum}")
-        question = user_response(f"Update {f}")
+    if dryrun:
+        print(f"Dry run! {f} updated!")
+    else:
+        local_sum = get_local_checksum(metadata_dir, f)
+        ref_sum = get_ref_checksum(temp_folder, f)
+        if local_sum != ref_sum:
+            print(f"File: {f} differs.")
+            print(f"Local MD5 checksum: {local_sum}")
+            print(f"Remote MD5 checksum: {ref_sum}")
+            question = user_response(f"Update {f}")
 
-        if question:
-            command = [
-                "cp",
-                temp_folder.joinpath(f),
-                metadata_dir.joinpath(f),
-            ]
-            sp.call(command, cwd=metadata_dir)
-            print(f"{f} updated!")
-        else:
-            print(f"{f} NOT updated!")
-    return None
+            if question:
+                command = [
+                    "cp",
+                    temp_folder.joinpath(f),
+                    metadata_dir.joinpath(f),
+                ]
+                sp.call(command, cwd=metadata_dir)
+                print(f"{f} updated!")
+            else:
+                print(f"{f} NOT updated!")
+        return None
 
 
-def update_pyproject_toml(metadata_dir, temp_folder):
+def update_pyproject_toml(metadata_dir, temp_folder, dryrun):
     """
     The 'pyproject.toml' is treated a little bit differently. First, there is a check if
     the file even exists in the project directory. If that is not the case it will be copied
@@ -245,68 +281,76 @@ def update_pyproject_toml(metadata_dir, temp_folder):
     cubi.metadata.version is getting updated.
     """
     x = "pyproject.toml"
-    if not metadata_dir.joinpath(x).is_file():
-        question = user_response(f"There is no pyproject.toml in your folder. Add {x}")
+    if dryrun:
+        print(f"Dry run! {x} added or updated!")
+    else:
+        if not metadata_dir.joinpath(x).is_file():
+            question = user_response(
+                f"There is no pyproject.toml in your folder. Add {x}"
+            )
 
-        if question:
+            if question:
+                command = [
+                    "cp",
+                    temp_folder.joinpath(x),
+                    metadata_dir.joinpath(x),
+                ]
+                sp.call(command, cwd=metadata_dir)
+                print(f"{x} added!")
+            else:
+                print(f"{x} NOT added!")
+
+        else:
             command = [
                 "cp",
                 temp_folder.joinpath(x),
-                metadata_dir.joinpath(x),
+                pathlib.Path(metadata_dir, x + ".temp"),
             ]
             sp.call(command, cwd=metadata_dir)
-            print(f"{x} added!")
-        else:
-            print(f"{x} NOT added!")
+            version_new = toml.load(pathlib.Path(metadata_dir, x + ".temp"), _dict=dict)
+            version_old = toml.load(pathlib.Path(metadata_dir, x), _dict=dict)
+            version_new = version_new["cubi"]["metadata"]["version"]
+            version_old_print = version_old["cubi"]["metadata"]["version"]
+            version_old["cubi"]["metadata"]["version"] = version_new
 
-    else:
-        command = [
-            "cp",
-            temp_folder.joinpath(x),
-            pathlib.Path(metadata_dir, x + ".temp"),
-        ]
-        sp.call(command, cwd=metadata_dir)
-        version_new = toml.load(pathlib.Path(metadata_dir, x + ".temp"), _dict=dict)
-        version_old = toml.load(pathlib.Path(metadata_dir, x), _dict=dict)
-        version_new = version_new["cubi"]["metadata"]["version"]
-        version_old_print = version_old["cubi"]["metadata"]["version"]
-        version_old["cubi"]["metadata"]["version"] = version_new
+            if version_old_print != version_new:
+                question = user_response(f"Update metadata files version in {x}")
 
-        if version_old_print != version_new:
-            question = user_response(f"Update metadata files version in {x}")
-
-            if question:
-                toml.dumps(version_old, encoder=None)
-                with open(
-                    pathlib.Path(metadata_dir, x), "w", encoding="utf-8"
-                ) as text_file:
-                    text_file.write(toml.dumps(version_old, encoder=None))
-                pathlib.Path(metadata_dir, x + ".temp").unlink()
-                print(
-                    f"{x} updated from version {version_old_print} to version {version_new}!"
-                )
+                if question:
+                    toml.dumps(version_old, encoder=None)
+                    with open(
+                        pathlib.Path(metadata_dir, x), "w", encoding="utf-8"
+                    ) as text_file:
+                        text_file.write(toml.dumps(version_old, encoder=None))
+                    pathlib.Path(metadata_dir, x + ".temp").unlink()
+                    print(
+                        f"{x} updated from version {version_old_print} to version {version_new}!"
+                    )
+                else:
+                    pathlib.Path(metadata_dir, x + ".temp").unlink()
+                    print(
+                        f"{x} was NOT updated from version {version_old_print} to version {version_new}!"
+                    )
             else:
                 pathlib.Path(metadata_dir, x + ".temp").unlink()
-                print(
-                    f"{x} was NOT updated from version {version_old_print} to version {version_new}!"
-                )
-        else:
-            pathlib.Path(metadata_dir, x + ".temp").unlink()
-            print("Nothing to update!")
-    return None
+                print("Nothing to update!")
+        return None
 
 
-def rm_temp(pth: pathlib.Path):
+def rm_temp(pth: pathlib.Path, dryrun):
     """
     Remove all files and folders from temp folder
     that contains the downloaded metadata files
     """
-    for child in pth.iterdir():
-        if child.is_file():
-            child.unlink()
-        else:
-            rm_temp(child)
-    pth.rmdir()
+    if dryrun:
+        pass
+    else:
+        for child in pth.iterdir():
+            if child.is_file():
+                child.unlink()
+            else:
+                rm_temp(child, dryrun)
+        pth.rmdir()
     return None
 
 
@@ -325,6 +369,25 @@ def user_response(question):
     if answer in pos:
         return True
     return False
+
+
+def external_repo(project_dir, external, dryrun):
+    """
+    Function to evaluate the user response to the Yes or No question refarding updating
+    the metadata files.
+    """
+    if dryrun:
+        if external:
+            metadata_dir = pathlib.Path(project_dir, "cubi")
+        else:
+            metadata_dir = project_dir
+    else:
+        if external:
+            metadata_dir = pathlib.Path(project_dir, "cubi")
+            metadata_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            metadata_dir = project_dir
+    return metadata_dir
 
 
 def report_script_version():
