@@ -5,9 +5,11 @@ import sys
 import subprocess as sp
 import argparse as argp
 import hashlib
+import shutil
 import toml
 
-# sys.tracebacklimit = -1
+
+sys.tracebacklimit = -1
 
 
 def main():
@@ -33,25 +35,31 @@ def main():
     external = args.external
     keep = args.keep
 
-    # location of the temp folder holding branch/version tag of interest
-    temp_folder = pathlib.Path(f"{project_dir}/temp/{source}")
+    # Since using the online github repo directly to update the local metadata files
+    # is resulting in hitting an API rate limit fairly quickly a local copy is needed.
+    # The location of the template_metadata folder holding branch/version tag of interest
+    # is on the same level as the project directory
+    metadata_dir = pathlib.Path(
+        pathlib.Path(f"{project_dir}").resolve().parents[0],
+        f"template_metadata_files/{source}",
+    ).resolve()
 
     # detect if its a external workflow
     if external:
-        metadata_dir = external_repo(project_dir, external, dryrun)
+        workflow_dir = external_repo(project_dir, external, dryrun)
         print(f"\nExternal set as: {external}\n")
         print(
-            f"Metadata source directory set as: {external_repo(project_dir, external, dryrun)}\n"
+            f"Metadata files will be updated in: {external_repo(project_dir, external, dryrun)}\n"
         )
     else:
-        metadata_dir = external_repo(project_dir, external, dryrun)
+        workflow_dir = external_repo(project_dir, external, dryrun)
         print(
-            f"Metadata source directory set as: {external_repo(project_dir, external, dryrun)}\n"
+            f"\nMetadata files will be updated in: {external_repo(project_dir, external, dryrun)}\n"
         )
 
-    # Clone the 'template-metadata-files' branch or version tag into a local temp folder if it exists
+    # Clone the 'template-metadata-files' branch or version tag into a local folder if it exists
     try:
-        clone(project_dir, ref_repo, source, temp_folder, dryrun)
+        clone(project_dir, ref_repo, source, metadata_dir, dryrun)
     except AssertionError:
         raise AssertionError(
             f"The repository you entered or the branch or version tag named '{source}' doesn't exist"
@@ -67,21 +75,24 @@ def main():
 
     # Updating routine of the metadata files
     for f in files_to_update:
-        print(f"{f} checking...")
         if f == "pyproject.toml":
-            update_pyproject_toml(metadata_dir, temp_folder, dryrun)
+            update_pyproject_toml(workflow_dir, metadata_dir, source, dryrun)
         else:
-            update_file(f, metadata_dir, temp_folder, dryrun)
+            print(f"Comparing if local '{f}' differs from version in branch/version tag "
+              f"'{source}' in the 'template-metadata-files' repo")
+            update_file(f, workflow_dir, metadata_dir, dryrun)
 
     # detect if metafiles temp folder should be kept
     if keep:
         print(
-            "\nYou want to keep the temp folder with the metadata file. "
-            f"It's located at {temp_folder}"
+            f"\nYou want to keep the files of the branch/version tag '{source}' of the 'template-metadata-files' folder.\n"
+            f"It's located at '{metadata_dir}'"
         )
     else:
-        rm_temp(temp_folder.parent, dryrun)
-        print("\nThe temp folder with all metadata files and folders has been deleted!")
+        rm_temp(metadata_dir.parent, dryrun)
+        #print("\nThe 'template_metadata_files' folder with all files and subfolders has been deleted!")
+
+    print("\nUPDATE COMPLETED!")
 
     return None
 
@@ -109,10 +120,11 @@ def parse_command_line():
     )
     parser.add_argument(
         "--external",
+        "-e",
         action="store_true",
         default=False,
         dest="external",
-        help="If False (default), metafiles are copied to the project location,"
+        help="If False (default), metadata files are copied to the project_dir, "
         "else to a subfolder (cubi).",
     )
     parser.add_argument(
@@ -121,7 +133,7 @@ def parse_command_line():
         type=str,
         nargs="?",
         default="main",
-        help="Branch or Tag from which to update the files",
+        help="Branch or version tag from which to update the files",
     )
     parser.add_argument(
         "--keep",
@@ -129,7 +141,7 @@ def parse_command_line():
         action="store_true",
         default=False,
         dest="keep",
-        help="If False (default), the metafiles source repo will be deleted when script finishes,"
+        help="If False (default), the metadata files source repo will be deleted when script finishes,"
         "else it will be kept.",
     )
     parser.add_argument(
@@ -144,6 +156,7 @@ def parse_command_line():
     )
     parser.add_argument(
         "--version",
+        "-v",
         action="store_true",
         help="Displays version of this script.",
     )
@@ -155,27 +168,27 @@ def parse_command_line():
     return args
 
 
-def clone(metadata_dir, ref_repo, source, temp_folder, dryrun):
+def clone(workflow_dir, ref_repo, source, metadata_dir, dryrun):
     """
     Check if the branch or version tag that contains the desired metadata files
-    is already in a temp folder within the project directory.
+    is already in a temp folder parallel to the project directory.
     If that is not the case, the desired branch or version tag will be cloned into
-    a temp folder within the project directory unless the branch or version tag don't exist,
+    a temp folder parallel to the project directory unless the branch or version tag don't exist,
     then an AssertionError will be called to stop the script.
     If a temp folder for the branch or version tag exists this folder is getting updated via
     a git pull command.
     """
     if dryrun:
-        if not temp_folder.is_dir():
+        if not metadata_dir.is_dir():
             print(
-                f"The requested branch/version tag (default: main) is being copied to {temp_folder}."
+                f"The requested branch/version tag (default: main) is being copied to {metadata_dir}.\n"
             )
         else:
             print(
-                "The requested branch/version tag (default: main) already exists and is getting updated."
+                "The requested branch/version tag (default: main) already exists and is getting updated.\n"
             )
     else:
-        if not temp_folder.is_dir():
+        if not metadata_dir.is_dir():
             command = [
                 "git",
                 "clone",
@@ -185,13 +198,13 @@ def clone(metadata_dir, ref_repo, source, temp_folder, dryrun):
                 "--branch",
                 source,
                 ref_repo,
-                temp_folder,
+                metadata_dir,
             ]
             clone_cmd = sp.run(
                 command,
                 stdout=sp.PIPE,
                 stderr=sp.PIPE,
-                cwd=metadata_dir,
+                cwd=workflow_dir,
                 check=False,
             )
             # Git will throw a error message if you try to clone a repo/branch/tag
@@ -208,18 +221,18 @@ def clone(metadata_dir, ref_repo, source, temp_folder, dryrun):
             ]
             sp.run(
                 command,
-                cwd=temp_folder,
+                cwd=metadata_dir,
                 check=False,
             )
     return None
 
 
-def get_local_checksum(metadata_dir, f):
+def get_local_checksum(workflow_dir, f):
     """
     The MD5 checksum for all metadata files in the local project directory is determined.
     """
-    if metadata_dir.joinpath(f).is_file():
-        with open(metadata_dir.joinpath(f), "rb") as local_file:
+    if workflow_dir.joinpath(f).is_file():
+        with open(workflow_dir.joinpath(f), "rb") as local_file:
             # read contents of the file
             local_data = local_file.read()
             # pipe contents of the file through
@@ -229,11 +242,11 @@ def get_local_checksum(metadata_dir, f):
     return md5_local
 
 
-def get_ref_checksum(temp_folder, f):
+def get_ref_checksum(metadata_dir, f):
     """
     The MD5 checksum for all metadata files in the temp folder for the desired branch or version tag is determined.
     """
-    with open(temp_folder.joinpath(f), "rb") as ref_file:
+    with open(metadata_dir.joinpath(f), "rb") as ref_file:
         # read contents of the file
         ref_data = ref_file.read()
         # pipe contents of the file through
@@ -241,7 +254,7 @@ def get_ref_checksum(temp_folder, f):
     return md5_ref
 
 
-def update_file(f, metadata_dir, temp_folder, dryrun):
+def update_file(f, workflow_dir, metadata_dir, dryrun):
     """
     The MD5 checksum of the the local metadata file(s) and the metadata file(s) in the desired
     branch or version tag are being compared. If they differ a question to update for each different
@@ -250,28 +263,34 @@ def update_file(f, metadata_dir, temp_folder, dryrun):
     if dryrun:
         print(f"Dry run! {f} updated!")
     else:
-        local_sum = get_local_checksum(metadata_dir, f)
-        ref_sum = get_ref_checksum(temp_folder, f)
+        local_sum = get_local_checksum(workflow_dir, f)
+        ref_sum = get_ref_checksum(metadata_dir, f)
         if local_sum != ref_sum:
-            print(f"File: {f} differs.")
+            print(f"The versions of '{f}' differ!")
             print(f"Local MD5 checksum: {local_sum}")
             print(f"Remote MD5 checksum: {ref_sum}")
-            question = user_response(f"Update {f}")
+            question = user_response(f"Update '{f}'")
 
             if question:
                 command = [
                     "cp",
-                    temp_folder.joinpath(f),
                     metadata_dir.joinpath(f),
+                    workflow_dir.joinpath(f),
                 ]
-                sp.call(command, cwd=metadata_dir)
-                print(f"{f} updated!")
+                sp.run(
+                    command,
+                    cwd=workflow_dir,
+                    check=False
+                )
+                print(f"'{f}' was updated!")
             else:
-                print(f"{f} NOT updated!")
+                print(f"'{f}' was NOT updated!")
+        else:
+            print(f"'{f}' is up-to-date!")
         return None
 
 
-def update_pyproject_toml(metadata_dir, temp_folder, dryrun):
+def update_pyproject_toml(workflow_dir, metadata_dir, source, dryrun):
     """
     The 'pyproject.toml' is treated a little bit differently. First, there is a check if
     the file even exists in the project directory. If that is not the case it will be copied
@@ -282,75 +301,81 @@ def update_pyproject_toml(metadata_dir, temp_folder, dryrun):
     """
     x = "pyproject.toml"
     if dryrun:
-        print(f"Dry run! {x} added or updated!")
+        print(f"Dry run! '{x}' added or updated!")
     else:
-        if not metadata_dir.joinpath(x).is_file():
+        if not workflow_dir.joinpath(x).is_file():
             question = user_response(
-                f"There is no pyproject.toml in your folder. Add {x}"
+                f"There is no 'pyproject.toml' in your folder. Add '{x}'"
             )
 
             if question:
                 command = [
                     "cp",
-                    temp_folder.joinpath(x),
                     metadata_dir.joinpath(x),
+                    workflow_dir.joinpath(x),
                 ]
-                sp.call(command, cwd=metadata_dir)
-                print(f"{x} added!")
+                sp.run(
+                    command,
+                    cwd=workflow_dir,
+                    check=False
+                )
+                print(f"'{x}' was added!")
             else:
-                print(f"{x} NOT added!")
+                print(f"'{x}' was NOT added!")
 
         else:
             command = [
                 "cp",
-                temp_folder.joinpath(x),
-                pathlib.Path(metadata_dir, x + ".temp"),
+                metadata_dir.joinpath(x),
+                pathlib.Path(workflow_dir, x + ".temp"),
             ]
-            sp.call(command, cwd=metadata_dir)
-            version_new = toml.load(pathlib.Path(metadata_dir, x + ".temp"), _dict=dict)
-            version_old = toml.load(pathlib.Path(metadata_dir, x), _dict=dict)
+            sp.run(
+                command,
+                cwd=workflow_dir,
+                check=False
+            )
+            version_new = toml.load(pathlib.Path(workflow_dir, x + ".temp"), _dict=dict)
+            version_old = toml.load(pathlib.Path(workflow_dir, x), _dict=dict)
             version_new = version_new["cubi"]["metadata"]["version"]
             version_old_print = version_old["cubi"]["metadata"]["version"]
             version_old["cubi"]["metadata"]["version"] = version_new
 
             if version_old_print != version_new:
-                question = user_response(f"Update metadata files version in {x}")
+                question = user_response(
+                    f"\nYou updated your local repo with the 'template-metadata-files' in branch/version tag '{source}'."
+                    f"\nDo you want to update the metadata files version in '{x}'")
 
                 if question:
                     toml.dumps(version_old, encoder=None)
                     with open(
-                        pathlib.Path(metadata_dir, x), "w", encoding="utf-8"
+                        pathlib.Path(workflow_dir, x), "w", encoding="utf-8"
                     ) as text_file:
                         text_file.write(toml.dumps(version_old, encoder=None))
-                    pathlib.Path(metadata_dir, x + ".temp").unlink()
+                    pathlib.Path(workflow_dir, x + ".temp").unlink()
                     print(
-                        f"{x} updated from version {version_old_print} to version {version_new}!"
+                        f"Metadata version in '{x}' was updated from version "
+                        f"'{version_old_print}' to version '{version_new}'!"
                     )
                 else:
-                    pathlib.Path(metadata_dir, x + ".temp").unlink()
+                    pathlib.Path(workflow_dir, x + ".temp").unlink()
                     print(
-                        f"{x} was NOT updated from version {version_old_print} to version {version_new}!"
+                        f"'{x}' was NOT updated from version '{version_old_print}' to version '{version_new}'!"
                     )
             else:
-                pathlib.Path(metadata_dir, x + ".temp").unlink()
-                print("Nothing to update!")
+                pathlib.Path(workflow_dir, x + ".temp").unlink()
+                print(f"\nMetadata version in '{x}' is up-to-date!\n")
         return None
 
 
 def rm_temp(pth: pathlib.Path, dryrun):
     """
-    Remove all files and folders from temp folder
+    Remove all files and folders from template_metadata_files folder
     that contains the downloaded metadata files
     """
     if dryrun:
         pass
     else:
-        for child in pth.iterdir():
-            if child.is_file():
-                child.unlink()
-            else:
-                rm_temp(child, dryrun)
-        pth.rmdir()
+        shutil.rmtree(pth)
     return None
 
 
@@ -373,21 +398,21 @@ def user_response(question):
 
 def external_repo(project_dir, external, dryrun):
     """
-    Function to evaluate the user response to the Yes or No question refarding updating
-    the metadata files.
+    Function to create a cubi folder where the CUBI metadata files will be copied/updated
+    if the user stated that the project is from external.
     """
     if dryrun:
         if external:
-            metadata_dir = pathlib.Path(project_dir, "cubi")
+            workflow_dir = pathlib.Path(project_dir, "cubi")
         else:
-            metadata_dir = project_dir
+            workflow_dir = project_dir
     else:
         if external:
-            metadata_dir = pathlib.Path(project_dir, "cubi")
-            metadata_dir.mkdir(parents=True, exist_ok=True)
+            workflow_dir = pathlib.Path(project_dir, "cubi")
+            workflow_dir.mkdir(parents=True, exist_ok=True)
         else:
-            metadata_dir = project_dir
-    return metadata_dir
+            workflow_dir = project_dir
+    return workflow_dir
 
 
 def report_script_version():
