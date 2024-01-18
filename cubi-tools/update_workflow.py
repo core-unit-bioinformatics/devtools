@@ -74,7 +74,7 @@ def main():
     # Updating routine of the metadata files
     for f in files_to_update:
         if f == "pyproject.toml":
-            update_pyproject_toml(project_dir, template_dir, source, dryrun, metadata)
+            update_pyproject_toml(project_dir, template_dir, source, dryrun)
         else:
             print(
                 f"Comparing if local '{f}' differs from version in branch/version tag "
@@ -90,7 +90,7 @@ def main():
         )
     else:
         rm_temp(template_dir.parent, dryrun)
-        # print("\nThe 'template_metadata_files' folder with all files and subfolders has been deleted!")
+        # print("\nThe 'update_workflow_temp' folder with all files and subfolders has been deleted!")
 
     print("\nUPDATE COMPLETED!")
 
@@ -285,7 +285,7 @@ def update_file(f, project_dir, template_dir, dryrun):
         return None
 
 
-def update_pyproject_toml(project_dir, template_dir, source, dryrun, metadata):
+def update_pyproject_toml(project_dir, template_dir, source, dryrun):
     """
     The 'pyproject.toml' is treated a little bit differently. First, there is a check if
     the file even exists in the project directory. If that is not the case it will be copied
@@ -299,11 +299,8 @@ def update_pyproject_toml(project_dir, template_dir, source, dryrun, metadata):
     if dryrun:
         print(f"Dry run! '{x}' added or updated!")
     else:
-        if metadata:
-            update_pyproject_toml_workflow(project_dir, template_dir, source)
-            update_pyproject_toml_metadata(project_dir, template_dir, source)
-        else:
-            update_pyproject_toml_workflow(project_dir, template_dir, source)
+        update_pyproject_toml_workflow(project_dir, template_dir, source)
+        update_pyproject_toml_metadata(project_dir, template_dir, source)
     return None
 
 
