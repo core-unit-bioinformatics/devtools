@@ -180,11 +180,11 @@ def clone(project_dir, ref_repo, source, template_dir, dryrun):
     if dryrun:
         if not template_dir.is_dir():
             print(
-                f"\nThe requested branch/version tag (default: main) is being copied to {template_dir}."
+                f"The requested branch/version tag (default: main) is being copied to {template_dir}."
             )
         else:
             print(
-                "\nThe requested branch/version tag (default: main) already exists and is getting updated."
+                "The requested branch/version tag (default: main) already exists and is getting updated."
             )
     else:
         if not template_dir.is_dir():
@@ -260,7 +260,11 @@ def update_file(f, project_dir, template_dir, dryrun):
     workflow file pops up. If an update is requested it will be performed.
     """
     if dryrun:
-        print(f"Dry run! {f} updated!")
+        print(f"The versions of '{f}' differ!")
+        print("Local MD5 checksum: (some MD5 checksum)")
+        print("Remote MD5 checksum: (some other MD5 checksum)")
+        print(f"Update '{f}'(y/n)? y")
+        print(f"Dry run! '{f}' would be updated!")
     else:
         local_sum = get_local_checksum(project_dir, f)
         ref_sum = get_ref_checksum(template_dir, f)
@@ -297,7 +301,22 @@ def update_pyproject_toml(project_dir, template_dir, source, dryrun):
     """
     x = "pyproject.toml"
     if dryrun:
-        print(f"Dry run! '{x}' added or updated!")
+        print(f"\nThere is no 'pyproject.toml' in your folder. Add '{x}'(y/n)? y")
+        print(f"Dry run! '{x}' would have been added!")
+        print(
+            f"\nYou updated your local repo with the 'template-snakmake' in branch/version tag '{source}'."
+            f"\nDo you want to update the workflow template version in '{x}'(y/n)? y"
+            )
+        print(f"Dry run! Workflow template version in '{x}' was updated from version "
+            "'v1.1' to version 'v1.2'!"
+            )
+        print(
+            f"\nYou updated your local repo with the 'template-metadata-files' in branch/version tag '{source}'."
+            f"\nDo you want to update the metadata files version in '{x}'(y/n)? y")
+        print(f"Dry run! Metadata version in '{x}' would have been updated from version "
+                "'v1' to version 'v2'!"
+            )
+
     else:
         update_pyproject_toml_workflow(project_dir, template_dir, source)
         update_pyproject_toml_metadata(project_dir, template_dir, source)
