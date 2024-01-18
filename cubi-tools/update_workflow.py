@@ -40,7 +40,7 @@ def main():
     # is on the same level as the project directory
     template_dir = pathlib.Path(
         pathlib.Path(f"{project_dir}").resolve().parents[0],
-        f"template_snakemake/{source}",
+        f"update_workflow_temp/{source}",
     ).resolve()
 
     # detect if workflow is based on CUBI's template_snakemake repo
@@ -85,7 +85,7 @@ def main():
     # detect if metafiles temp folder should be kept
     if keep:
         print(
-            f"\nYou want to keep the files of the branch/version tag '{source}' of the 'template-snakemake' folder.\n"
+            f"\nYou want to keep the files of the branch/version tag '{source}' of the 'update_workflow_temp' folder.\n"
             f"It's located at '{template_dir}'"
         )
     else:
