@@ -41,7 +41,7 @@ def main():
     # is on the same level as the project directory
     metadata_dir = pathlib.Path(
         pathlib.Path(f"{project_dir}").resolve().parents[0],
-        f"template_metadata_files/{source}",
+        f"update_metadata_temp/{source}",
     ).resolve()
 
     # detect if its a external workflow
@@ -90,7 +90,7 @@ def main():
         )
     else:
         rm_temp(metadata_dir.parent, dryrun)
-        #print("\nThe 'template_metadata_files' folder with all files and subfolders has been deleted!")
+        #print("\nThe 'update_metadata_temp' folder with all files and subfolders has been deleted!")
 
     print("\nUPDATE COMPLETED!")
 
@@ -369,7 +369,7 @@ def update_pyproject_toml(workflow_dir, metadata_dir, source, dryrun):
 
 def rm_temp(pth: pathlib.Path, dryrun):
     """
-    Remove all files and folders from template_metadata_files folder
+    Remove all files and folders from update_metadata_temp folder
     that contains the downloaded metadata files
     """
     if dryrun:
