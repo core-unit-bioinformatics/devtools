@@ -5,7 +5,6 @@ import sys
 import subprocess as sp
 import argparse as argp
 import hashlib
-import shutil
 import toml
 
 
@@ -31,12 +30,11 @@ def main():
     # check if project directory exist:
     project_dir = pathlib.Path(args.project_dir).resolve()
     assert project_dir.is_dir(), f"The project directory {project_dir} doesn't exist!"
-    print(f"Project directory set as: {project_dir}\n")
+    print(f"Project directory set as: {project_dir}")
 
     ref_repo = args.ref_repo
     source = args.source
     external = args.external
-    keep = args.keep
 
     # Since using the online github repo directly to update the local metadata files
     # is resulting in hitting an API rate limit fairly quickly a local copy is needed.
@@ -44,7 +42,7 @@ def main():
     # of interest is on the same level as the project directory
     metadata_dir = pathlib.Path(
         pathlib.Path(f"{project_dir}").resolve().parents[0],
-        f"update_metadata_temp/{source}",
+        "template-metadata-files",
     ).resolve()
 
     # detect if its a external workflow
@@ -64,7 +62,7 @@ def main():
 
     # Clone the 'template-metadata-files' branch or version tag
     # into a local folder if it exists
-    clone(project_dir, ref_repo, source, metadata_dir, dryrun)
+    clone(workflow_dir, project_dir, ref_repo, source, metadata_dir, dryrun)
 
     # files that will be updated
     files_to_update = [
@@ -85,17 +83,21 @@ def main():
             )
             update_file(f, workflow_dir, metadata_dir, dryrun)
 
-    # detect if metafiles temp folder should be kept
-    if keep:
-        print(
-            f"\nYou want to keep the files of the branch/version tag '{source}' "
-            "of the 'template-metadata-files' folder.\n"
-            f"It's located at '{metadata_dir}'"
+    # For 'git pull' you have to be in a branch of the template-metadata-files repo to
+    # merge with. If you previously chose a version tag to update from, 'git pull' will
+    # throw a waning message. This part will reset the repo to the main branch to avoid
+    # any warning message stemming from 'git pull'
+    command_reset = [
+                "git",
+                "checkout",
+                "main",
+                "-q"
+            ]
+    sp.run(
+            command_reset,
+            cwd=metadata_dir,
+            check=False,
         )
-    else:
-        rm_temp(metadata_dir.parent, dryrun)
-        # print("\nThe 'update_metadata_temp' folder with all files
-        # and subfolders has been deleted!")
 
     print("\nUPDATE COMPLETED!")
 
@@ -112,6 +114,7 @@ def parse_command_line():
     )
     parser.add_argument(
         "--project-dir",
+        "-p",
         type=pathlib.Path,
         help="(Mandatory) Directory where metadata should be copied/updated.",
         required=True,
@@ -141,15 +144,6 @@ def parse_command_line():
         help="Branch or version tag from which to update the files",
     )
     parser.add_argument(
-        "--keep",
-        "-k",
-        action="store_true",
-        default=False,
-        dest="keep",
-        help="If False (default), the metadata files source repo "
-        "will be deleted when script finishes else it will be kept.",
-    )
-    parser.add_argument(
         "--dry-run",
         "--dryrun",
         "-d",
@@ -173,37 +167,109 @@ def parse_command_line():
     return args
 
 
-def clone(workflow_dir, ref_repo, source, metadata_dir, dryrun):
+def clone(workflow_dir, project_dir, ref_repo, source, metadata_dir, dryrun):
     """
-    Check if the branch or version tag that contains the desired metadata files
-    is already in a temp folder parallel to the project directory.
-    If that is not the case, the desired branch or version tag will be cloned into
-    a temp folder parallel to the project directory unless the branch or version tag
-    don't exist, then an AssertionError will be called to stop the script.
-    If a temp folder for the branch or version tag exists this folder is getting
-    updated via a git pull command.
+    Check if the 'template-metadata-files' repo is already parallel to the
+    project directory. If the 'template-metadata-files' repo exists this folder is
+    getting updated via a 'git pull --all' command. If that is not the case,
+    the 'template-metadata-files' repo will be cloned parallel to the project
+    directory unless the branch or version tag don't exist,
+    then an AssertionError will be called to stop the script.
     """
     if dryrun:
         if not metadata_dir.is_dir():
             print(
-                "The requested branch/version tag (default: main) is being "
-                f"copied to {metadata_dir}.\n"
+                "The 'template-metadata-files' repo needs to be present in the "
+                f"parental folder of the project directory {project_dir}.\n"
+                "In a live run the 'template-metadata-files' repo would "
+                f"be created at {metadata_dir}.\n"
             )
+            exit()
         else:
             print(
-                "The requested branch/version tag (default: main) already "
-                "exists and is getting updated.\n"
+                "The requested branch/version tag (default: main) is present "
+                "and is getting updated via 'git pull -all' .\n"
+            )
+            command = [
+                "git",
+                "pull",
+                "--all",
+                "-q",
+            ]
+            sp.run(
+                command,
+                cwd=metadata_dir,
+                check=False,
+            )
+            command_checkout = [
+                "git",
+                "checkout",
+                ''.join({source}),
+                "-q"
+            ]
+            checkout_cmd = sp.run(
+                command_checkout,
+                cwd=metadata_dir,
+                stderr=sp.PIPE,
+                check=False,
+            )
+            # If the 'template-metadata-files' folder is not a Git repo
+            # an error message that contains the string 'fatal:' will be thrown
+            warning = "fatal:"
+            assert warning not in str(checkout_cmd.stderr.strip()), (
+                "The folder 'template-metadata-files' is not a git repository! "
+                "For this script to work either delete the folder or move it!!"
+            )
+            # If you try to clone a repo/branch/tag that doesn't exist
+            # Git will throw an error message that contains the string 'error:'
+            error = "error:"
+            assert error not in str(checkout_cmd.stderr.strip()), (
+                f"The branch or version tag named '{source}' doesn't exist"
             )
     else:
-        if not metadata_dir.is_dir():
+        if metadata_dir.is_dir():
+            command = [
+                "git",
+                "pull",
+                "--all",
+                "-q",
+            ]
+            sp.run(
+                command,
+                cwd=metadata_dir,
+                check=False,
+            )
+            command_checkout = [
+                "git",
+                "checkout",
+                ''.join({source}),
+                "-q"
+            ]
+            checkout_cmd = sp.run(
+                command_checkout,
+                cwd=metadata_dir,
+                stderr=sp.PIPE,
+                check=False,
+            )
+            # If the 'template-metadata-files' folder is not a Git repo
+            # an error message that contains the string 'fatal:' will be thrown
+            warning = "fatal:"
+            assert warning not in str(checkout_cmd.stderr.strip()), (
+                "The folder 'template-metadata-files' is not a git repository! "
+                "For this script to work either delete the folder or move it!!"
+            )
+            # If you try to clone a repo/branch/tag that doesn't exist
+            # Git will throw an error message that contains the string 'error:'
+            error = "error:"
+            assert error not in str(checkout_cmd.stderr.strip()), (
+                f"The branch or version tag named '{source}' doesn't exist"
+            )
+        else:
             command = [
                 "git",
                 "clone",
                 "-q",
                 "-c advice.detachedHead=false",
-                "--depth=1",  # depth =1 to avoid big .git file
-                "--branch",
-                source,
                 ref_repo,
                 metadata_dir,
             ]
@@ -214,23 +280,21 @@ def clone(workflow_dir, ref_repo, source, metadata_dir, dryrun):
                 cwd=workflow_dir,
                 check=False,
             )
-            # Git will throw a error message if you try to clone a repo/branch/tag
-            # that doesn't exist that contains the string 'fatal:'
+            # If the 'template-metadata-files' folder is not a Git repo
+            # an error message that contains the string 'fatal:' will be thrown
             warning = "fatal:"
             assert warning not in str(clone_cmd.stderr.strip()), (
                 "The repository you entered or the branch or version tag "
                 f"named '{source}' doesn't exist"
             )
-        else:
-            command = [
+            command_checkout = [
                 "git",
-                "pull",
-                "--all",
-                "-q",
-                "--depth=1",  # depth =1 to avoid big .git file
+                "checkout",
+                ''.join({source}),
+                "-q"
             ]
             sp.run(
-                command,
+                command_checkout,
                 cwd=metadata_dir,
                 check=False,
             )
@@ -274,11 +338,16 @@ def update_file(f, workflow_dir, metadata_dir, dryrun):
     metadata file pops up. If an update is requested it will be performed.
     """
     if dryrun:
-        print(f"The versions of '{f}' differ!")
-        print("Local MD5 checksum: (some MD5 checksum)")
-        print("Remote MD5 checksum: (some other MD5 checksum)")
-        print(f"Update '{f}'(y/n)? y")
-        print(f"Dry run! '{f}' would be updated!")
+        local_sum = get_local_checksum(workflow_dir, f)
+        ref_sum = get_ref_checksum(metadata_dir, f)
+        if local_sum != ref_sum:
+            print(f"The versions of '{f}' differ!")
+            print(f"Local MD5 checksum: {local_sum}")
+            print(f"Remote MD5 checksum: {ref_sum}")
+            print(f"Update '{f}'(y/n)? y")
+            print(f"Dry run! '{f}' would be updated!")
+        else:
+            print(f"Dry run! '{f}' is up-to-date!")
     else:
         local_sum = get_local_checksum(workflow_dir, f)
         ref_sum = get_ref_checksum(metadata_dir, f)
@@ -300,7 +369,7 @@ def update_file(f, workflow_dir, metadata_dir, dryrun):
                 print(f"'{f}' was NOT updated!")
         else:
             print(f"'{f}' is up-to-date!")
-        return None
+    return None
 
 
 def update_pyproject_toml(workflow_dir, metadata_dir, source, dryrun):
@@ -315,17 +384,36 @@ def update_pyproject_toml(workflow_dir, metadata_dir, source, dryrun):
     """
     x = "pyproject.toml"
     if dryrun:
-        print(f"\nThere is no 'pyproject.toml' in your folder. Add '{x}'(y/n)? y")
-        print(f"Dry run! '{x}' would have been added!")
-        print(
-            "\nYou updated your local repo with the 'template-metadata-files' "
-            f"in branch/version tag '{source}'."
-            f"\nDo you want to update the metadata files version in '{x}'(y/n)? y"
-        )
-        print(
-            f"Dry run! Metadata version in '{x}' would have been updated from version "
-            "'v1' to version 'v2'!"
-        )
+        if not workflow_dir.joinpath(x).is_file():
+            print(f"\nThere is no 'pyproject.toml' in your folder. Add '{x}'(y/n)? y")
+            print(f"Dry run! '{x}' would have been added!")
+        else:
+            command = [
+                "cp",
+                metadata_dir.joinpath(x),
+                pathlib.Path(workflow_dir, x + ".temp"),
+            ]
+            sp.run(command, cwd=workflow_dir, check=False)
+            version_new = toml.load(pathlib.Path(workflow_dir, x + ".temp"), _dict=dict)
+            version_old = toml.load(pathlib.Path(workflow_dir, x), _dict=dict)
+            version_new = version_new["cubi"]["metadata"]["version"]
+            version_old_print = version_old["cubi"]["metadata"]["version"]
+            version_old["cubi"]["metadata"]["version"] = version_new
+
+            if version_old_print != version_new:
+                print(
+                "\nYou updated your local repo with the 'template-metadata-files' "
+                f"in branch/version tag '{source}'."
+                f"\nDo you want to update the metadata files version in '{x}'(y/n)? y"
+                )
+                print(  "Dry run!\n"
+                        f"Metadata version in '{x}' would have been updated from version "
+                        f"'{version_old_print}' to version '{version_new}'!"
+                    )
+                pathlib.Path(workflow_dir, x + ".temp").unlink()
+            else:
+                print(f"\nDry run! Metadata version in '{x}' is up-to-date!\n")
+                pathlib.Path(workflow_dir, x + ".temp").unlink()
     else:
         if not workflow_dir.joinpath(x).is_file():
             question = user_response(
@@ -384,18 +472,6 @@ def update_pyproject_toml(workflow_dir, metadata_dir, source, dryrun):
                 pathlib.Path(workflow_dir, x + ".temp").unlink()
                 print(f"\nMetadata version in '{x}' is up-to-date!\n")
         return None
-
-
-def rm_temp(pth: pathlib.Path, dryrun):
-    """
-    Remove all files and folders from update_metadata_temp folder
-    that contains the downloaded metadata files
-    """
-    if dryrun:
-        pass
-    else:
-        shutil.rmtree(pth)
-    return None
 
 
 def user_response(question):
