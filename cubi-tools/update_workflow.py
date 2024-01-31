@@ -479,10 +479,11 @@ def update_file_list(template_dir, metadata, dryrun):
             workflow_files.append(str(pathlib.Path(file).relative_to(template_dir)))
 
     # the following files need to be excluded because they are always project specific
-    excluded_files = ["workflow/rules/00_modules.smk", "workflow/rules/99_aggregate.smk"]
+    excluded_files = ["pyproject.toml", "workflow/rules/00_modules.smk", "workflow/rules/99_aggregate.smk"]
     workflow_files = [item for item in workflow_files if item not in excluded_files]
     # the '.git' folder also needs to be excluded from the update list!
     workflow_files = [item for item in workflow_files if ".git/" not in item]
+    workflow_files.append("pyproject.toml")
 
     # metadata files
     metadata_files = [
