@@ -4,6 +4,7 @@ import pathlib
 import sys
 import subprocess as sp
 import argparse as argp
+import shutil
 import hashlib
 import toml
 
@@ -87,17 +88,12 @@ def main():
     # merge with. If you previously chose a version tag to update from, 'git pull' will
     # throw a waning message. This part will reset the repo to the main branch to avoid
     # any warning message stemming from 'git pull'
-    command_reset = [
-                "git",
-                "checkout",
-                "main",
-                "-q"
-            ]
+    command_reset = ["git", "checkout", "main", "-q"]
     sp.run(
-            command_reset,
-            cwd=metadata_dir,
-            check=False,
-        )
+        command_reset,
+        cwd=metadata_dir,
+        check=False,
+    )
 
     print("\nUPDATE COMPLETED!")
 
@@ -178,13 +174,12 @@ def clone(workflow_dir, project_dir, ref_repo, source, metadata_dir, dryrun):
     """
     if dryrun:
         if not metadata_dir.is_dir():
-            print(
+            raise NameError(
                 "The 'template-metadata-files' repo needs to be present in the "
                 f"parental folder of the project directory {project_dir}.\n"
                 "In a live run the 'template-metadata-files' repo would "
                 f"be created at {metadata_dir}.\n"
             )
-            exit()
         else:
             print(
                 "The requested branch/version tag (default: main) is present "
@@ -201,12 +196,7 @@ def clone(workflow_dir, project_dir, ref_repo, source, metadata_dir, dryrun):
                 cwd=metadata_dir,
                 check=False,
             )
-            command_checkout = [
-                "git",
-                "checkout",
-                ''.join({source}),
-                "-q"
-            ]
+            command_checkout = ["git", "checkout", "".join({source}), "-q"]
             checkout_cmd = sp.run(
                 command_checkout,
                 cwd=metadata_dir,
@@ -223,9 +213,9 @@ def clone(workflow_dir, project_dir, ref_repo, source, metadata_dir, dryrun):
             # If you try to clone a repo/branch/tag that doesn't exist
             # Git will throw an error message that contains the string 'error:'
             error = "error:"
-            assert error not in str(checkout_cmd.stderr.strip()), (
-                f"The branch or version tag named '{source}' doesn't exist"
-            )
+            assert error not in str(
+                checkout_cmd.stderr.strip()
+            ), f"The branch or version tag named '{source}' doesn't exist"
     else:
         if metadata_dir.is_dir():
             command = [
@@ -239,12 +229,7 @@ def clone(workflow_dir, project_dir, ref_repo, source, metadata_dir, dryrun):
                 cwd=metadata_dir,
                 check=False,
             )
-            command_checkout = [
-                "git",
-                "checkout",
-                ''.join({source}),
-                "-q"
-            ]
+            command_checkout = ["git", "checkout", "".join({source}), "-q"]
             checkout_cmd = sp.run(
                 command_checkout,
                 cwd=metadata_dir,
@@ -261,9 +246,9 @@ def clone(workflow_dir, project_dir, ref_repo, source, metadata_dir, dryrun):
             # If you try to clone a repo/branch/tag that doesn't exist
             # Git will throw an error message that contains the string 'error:'
             error = "error:"
-            assert error not in str(checkout_cmd.stderr.strip()), (
-                f"The branch or version tag named '{source}' doesn't exist"
-            )
+            assert error not in str(
+                checkout_cmd.stderr.strip()
+            ), f"The branch or version tag named '{source}' doesn't exist"
         else:
             command = [
                 "git",
@@ -287,12 +272,7 @@ def clone(workflow_dir, project_dir, ref_repo, source, metadata_dir, dryrun):
                 "The repository you entered or the branch or version tag "
                 f"named '{source}' doesn't exist"
             )
-            command_checkout = [
-                "git",
-                "checkout",
-                ''.join({source}),
-                "-q"
-            ]
+            command_checkout = ["git", "checkout", "".join({source}), "-q"]
             sp.run(
                 command_checkout,
                 cwd=metadata_dir,
@@ -358,12 +338,7 @@ def update_file(f, workflow_dir, metadata_dir, dryrun):
             question = user_response(f"Update '{f}'")
 
             if question:
-                command = [
-                    "cp",
-                    metadata_dir.joinpath(f),
-                    workflow_dir.joinpath(f),
-                ]
-                sp.run(command, cwd=workflow_dir, check=False)
+                shutil.copyfile(metadata_dir.joinpath(f), workflow_dir.joinpath(f))
                 print(f"'{f}' was updated!")
             else:
                 print(f"'{f}' was NOT updated!")
@@ -382,113 +357,130 @@ def update_pyproject_toml(workflow_dir, metadata_dir, source, dryrun):
     or version tag version. If that is the case the cubi.metadata.version
     is getting updated.
     """
-    x = "pyproject.toml"
     if dryrun:
-        if not workflow_dir.joinpath(x).is_file():
-            print(f"\nThere is no 'pyproject.toml' in your folder. Add '{x}'(y/n)? y")
-            print(f"Dry run! '{x}' would have been added!")
+        if not workflow_dir.joinpath("pyproject.toml").is_file():
+            print(
+                "\nThere is no 'pyproject.toml' in your folder. "
+                "Do you want to add 'pyproject.toml'(y/n)? y"
+                "\nDry run! 'pyproject.toml' would have been added!"
+            )
         else:
-            command = [
-                "cp",
-                metadata_dir.joinpath(x),
-                pathlib.Path(workflow_dir, x + ".temp"),
-            ]
-            sp.run(command, cwd=workflow_dir, check=False)
-            version_new = toml.load(pathlib.Path(workflow_dir, x + ".temp"), _dict=dict)
-            version_old = toml.load(pathlib.Path(workflow_dir, x), _dict=dict)
-            version_new = version_new["cubi"]["metadata"]["version"]
-            version_old_print = version_old["cubi"]["metadata"]["version"]
-            version_old["cubi"]["metadata"]["version"] = version_new
+            comparison = compare_metadata_versions(workflow_dir, metadata_dir)
+            # Just to clearly state which information/files are generated by the
+            # function 'compare_metadata_versions(workflow_dir, metadata_dir)':
+            metadata_version = comparison[0]
+            workflow_version = comparison[1]
+            new_pyproject_toml = comparison[2]
 
-            if version_old_print != version_new:
+            if metadata_version != workflow_version:
                 print(
-                "\nYou updated your local repo with the 'template-metadata-files' "
-                f"in branch/version tag '{source}'."
-                f"\nDo you want to update the metadata files version in '{x}'(y/n)? y"
+                    "\nYou updated your local repo with the 'template-metadata-files' "
+                    f"in branch/version tag '{source}'."
+                    "\nDo you want to update the metadata files version in "
+                    "'pyproject.toml'(y/n)? y"
                 )
-                print(  "Dry run!\n"
-                        f"Metadata version in '{x}' would have been updated from version "
-                        f"'{version_old_print}' to version '{version_new}'!"
-                    )
-                pathlib.Path(workflow_dir, x + ".temp").unlink()
+                print(
+                    "Dry run!\n"
+                    "Metadata version in 'pyproject.toml' would have been updated from "
+                    f"version '{workflow_version}' to version '{metadata_version}'!"
+                )
             else:
-                print(f"\nDry run! Metadata version in '{x}' is up-to-date!\n")
-                pathlib.Path(workflow_dir, x + ".temp").unlink()
+                print(
+                    "\nDry run! Metadata version in 'pyproject.toml' is up-to-date!\n"
+                )
     else:
-        if not workflow_dir.joinpath(x).is_file():
+        if not workflow_dir.joinpath("pyproject.toml").is_file():
             question = user_response(
-                f"There is no 'pyproject.toml' in your folder. Add '{x}'"
+                "There is no 'pyproject.toml' in your folder. Add 'pyproject.toml'"
             )
 
             if question:
-                command = [
-                    "cp",
-                    metadata_dir.joinpath(x),
-                    workflow_dir.joinpath(x),
-                ]
-                sp.run(command, cwd=workflow_dir, check=False)
-                print(f"'{x}' was added!")
+                shutil.copyfile(
+                    metadata_dir.joinpath("pyproject.toml"),
+                    workflow_dir.joinpath("pyproject.toml"),
+                )
+                print("'pyproject.toml' was added!")
             else:
-                print(f"'{x}' was NOT added!")
+                print("'pyproject.toml' was NOT added!")
 
         else:
-            command = [
-                "cp",
-                metadata_dir.joinpath(x),
-                pathlib.Path(workflow_dir, x + ".temp"),
-            ]
-            sp.run(command, cwd=workflow_dir, check=False)
-            version_new = toml.load(pathlib.Path(workflow_dir, x + ".temp"), _dict=dict)
-            version_old = toml.load(pathlib.Path(workflow_dir, x), _dict=dict)
-            version_new = version_new["cubi"]["metadata"]["version"]
-            version_old_print = version_old["cubi"]["metadata"]["version"]
-            version_old["cubi"]["metadata"]["version"] = version_new
+            comparison = compare_metadata_versions(workflow_dir, metadata_dir)
+            # Just to clearly state which information/files are generated by the
+            # function 'compare_metadata_versions(workflow_dir, metadata_dir)':
+            metadata_version = comparison[0]
+            workflow_version = comparison[1]
+            new_pyproject_toml = comparison[2]
 
-            if version_old_print != version_new:
+            if metadata_version != workflow_version:
                 question = user_response(
                     "\nYou updated your local repo with the 'template-metadata-files' "
                     f"in branch/version tag '{source}'."
-                    f"\nDo you want to update the metadata files version in '{x}'"
+                    "\nDo you want to update the metadata files version in "
+                    "'pyproject.toml'"
                 )
 
                 if question:
-                    toml.dumps(version_old, encoder=None)
                     with open(
-                        pathlib.Path(workflow_dir, x), "w", encoding="utf-8"
+                        pathlib.Path(workflow_dir, "pyproject.toml"),
+                        "w",
+                        encoding="utf-8",
                     ) as text_file:
-                        text_file.write(toml.dumps(version_old, encoder=None))
-                    pathlib.Path(workflow_dir, x + ".temp").unlink()
+                        text_file.write(toml.dumps(new_pyproject_toml, encoder=None))
                     print(
-                        f"Metadata version in '{x}' was updated from version "
-                        f"'{version_old_print}' to version '{version_new}'!"
+                        f"Metadata version in 'pyproject.toml' was updated from version"
+                        f" '{workflow_version}' to version '{metadata_version}'!"
                     )
                 else:
-                    pathlib.Path(workflow_dir, x + ".temp").unlink()
                     print(
-                        f"'{x}' was NOT updated from version '{version_old_print}' "
-                        f"to version '{version_new}'!"
+                        "'pyproject.toml' was NOT updated from version "
+                        f"'{workflow_version}' to version '{metadata_version}'!"
                     )
             else:
-                pathlib.Path(workflow_dir, x + ".temp").unlink()
-                print(f"\nMetadata version in '{x}' is up-to-date!\n")
+                print("\nMetadata version in 'pyproject.toml' is up-to-date!\n")
         return None
 
 
-def user_response(question):
+def user_response(question, attempt=0):
     """
     Function to evaluate the user response to the Yes or No question refarding updating
     the metadata files.
     """
+    attempt += 1
     prompt = f"{question}? (y/n): "
     answer = input(prompt).strip().lower()
     pos = ["yes", "y", "yay"]
     neg = ["no", "n", "nay"]
-    if not (answer in pos or answer in neg):
-        print(f"That was a yes or no question, but you answered: {answer}")
-        return user_response(question)
-    if answer in pos:
-        return True
-    return False
+    if attempt == 3:
+        raise AttributeError("You failed 3 times to answer a simple (y/n) question!")
+    else:
+        if not (answer in pos or answer in neg):
+            print(f"That was a yes or no question, but you answered: {answer}")
+            return user_response(question, attempt)
+    if answer in pos or answer in neg:
+        return answer in pos
+
+
+def compare_metadata_versions(workflow_dir, metadata_dir):
+    """
+    Function to compare the metadata version number in the pyproject.toml of
+    the local repository with the metadata version of the pyproject.toml of
+    the source 'template-metadata-files'.
+    """
+    # loading the pyproject.tomls:
+    metadata_pyproject = toml.load(
+        pathlib.Path(metadata_dir, "pyproject.toml"), _dict=dict
+    )
+    workflow_pyproject = toml.load(
+        pathlib.Path(workflow_dir, "pyproject.toml"), _dict=dict
+    )
+    # extracting the metadata versions:
+    metadata_version = metadata_pyproject["cubi"]["metadata"]["version"]
+    workflow_version = workflow_pyproject["cubi"]["metadata"]["version"]
+    # updating the metadata version in the workflow pyproject with the metadata version
+    # from the template-metadata-files 'source' pyproject:
+    workflow_pyproject["cubi"]["metadata"]["version"] = metadata_version
+
+    return metadata_version, workflow_version, workflow_pyproject
 
 
 def external_repo(project_dir, external, dryrun):
