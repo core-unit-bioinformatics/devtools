@@ -112,12 +112,14 @@ def parse_command_line():
         help="(Mandatory) Directory where metadata should be copied/updated.",
         required=True,
     )
+
+    DEFAULT_REF_REPO = "https://github.com/core-unit-bioinformatics/template-metadata-files.git"
     parser.add_argument(
         "--ref-repo",
         type=str,
         nargs="?",
-        default="https://github.com/core-unit-bioinformatics/template-metadata-files.git",
-        help="Reference/remote repository used to clone files.",
+        default=DEFAULT_REF_REPO,
+        help=f"Reference/remote repository used to clone files. Default: {DEFAULT_REF_REPO}",
     )
     parser.add_argument(
         "--external",
@@ -126,7 +128,7 @@ def parse_command_line():
         default=False,
         dest="external",
         help="If False (default), metadata files are copied to the project_dir, "
-        "else to a subfolder (cubi).",
+        "else to a subfolder (cubi). Default: False",
     )
     parser.add_argument(
         "--source",
@@ -134,7 +136,7 @@ def parse_command_line():
         type=str,
         nargs="?",
         default="main",
-        help="Branch or version tag from which to update the files",
+        help="Branch or version tag from which to update the files. Default: main",
     )
     parser.add_argument(
         "--dry-run",
@@ -144,7 +146,7 @@ def parse_command_line():
         action="store_true",
         default=False,
         dest="dryrun",
-        help="Just print what you would do, but don't do it",
+        help="Just report actions but do not execute them. Default: False",
     )
     parser.add_argument(
         "--version",
