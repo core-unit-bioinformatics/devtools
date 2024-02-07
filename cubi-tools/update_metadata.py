@@ -26,7 +26,8 @@ def main():
 
     # check if project directory exist:
     project_dir = pathlib.Path(args.project_dir).resolve()
-    assert project_dir.is_dir(), f"The project directory {project_dir} doesn't exist!"
+    if not project_dir.is_dir():
+        raise FileNotFoundError(f"The project directory {project_dir} does not exist.")
     print(f"Project directory set as: {project_dir}")
 
     ref_repo = args.ref_repo
