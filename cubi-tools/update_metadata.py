@@ -24,10 +24,6 @@ def main():
     if dryrun:
         print("\nTHIS IS A DRY RUN!!")
 
-    # report version of script
-    if args.version:
-        print(f"\nScript version: {report_script_version()}")
-
     # check if project directory exist:
     project_dir = pathlib.Path(args.project_dir).resolve()
     assert project_dir.is_dir(), f"The project directory {project_dir} doesn't exist!"
@@ -152,7 +148,8 @@ def parse_command_line():
     parser.add_argument(
         "--version",
         "-v",
-        action="store_true",
+        action="version",
+        version=report_script_version(),
         help="Displays version of this script.",
     )
     # if no arguments are given, print help
@@ -502,13 +499,27 @@ def external_repo(project_dir, external, dryrun):
     return workflow_dir
 
 
+def find_cubi_tools_top_level():
+    """Find the top-level folder of the cubi-tools
+    repository (starting from this script path).
+    """
+    script_path = pathlib.Path(__file__).resolve(strict=True)
+    script_folder = script_path.parent
+
+    cmd = ["git", "rev-parse", "--show-toplevel"]
+    repo_path = sp.check_output(cmd, cwd=script_folder).decode("utf-8").strip()
+    repo_path = pathlib.Path(repo_path)
+    return repo_path
+
+
 def report_script_version():
     """
     Read out of the cubi-tools script version out of the 'pyproject.toml'.
     """
-    toml_file = pathlib.Path(
-        pathlib.Path(__file__).resolve().parent.parent, "pyproject.toml"
-    )
+    cubi_tools_repo = find_cubi_tools_top_level()
+
+    toml_file = cubi_tools_repo.joinpath("pyproject.toml").resolve(strict=True)
+
     toml_file = toml.load(toml_file, _dict=dict)
     version = toml_file["cubi"]["tools"]["script"][0]["version"]
     return version
