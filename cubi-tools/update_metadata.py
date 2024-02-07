@@ -113,7 +113,9 @@ def parse_command_line():
         required=True,
     )
 
-    DEFAULT_REF_REPO = "https://github.com/core-unit-bioinformatics/template-metadata-files.git"
+    DEFAULT_REF_REPO = (
+        "https://github.com/core-unit-bioinformatics/template-metadata-files.git"
+    )
     parser.add_argument(
         "--ref-repo",
         type=str,
@@ -451,7 +453,9 @@ def user_response(question, attempt=0):
     pos = ["yes", "y", "yay"]
     neg = ["no", "n", "nay"]
     if attempt >= 3:
-        raise RuntimeError("You failed at least 3 times to answer a simple (y/n) question!")
+        raise RuntimeError(
+            "You failed at least 3 times to answer a simple (y/n) question!"
+        )
 
     if not (answer in pos or answer in neg):
         print(f"That was a yes or no question, but you answered: {answer}")
