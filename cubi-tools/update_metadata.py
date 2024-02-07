@@ -447,14 +447,13 @@ def user_response(question, attempt=0):
     answer = input(prompt).strip().lower()
     pos = ["yes", "y", "yay"]
     neg = ["no", "n", "nay"]
-    if attempt == 3:
-        raise AttributeError("You failed 3 times to answer a simple (y/n) question!")
-    else:
-        if not (answer in pos or answer in neg):
-            print(f"That was a yes or no question, but you answered: {answer}")
-            return user_response(question, attempt)
-    if answer in pos or answer in neg:
-        return answer in pos
+    if attempt >= 3:
+        raise RuntimeError("You failed at least 3 times to answer a simple (y/n) question!")
+
+    if not (answer in pos or answer in neg):
+        print(f"That was a yes or no question, but you answered: {answer}")
+        return user_response(question, attempt)
+    return answer in pos
 
 
 def compare_metadata_versions(workflow_dir, metadata_dir):
