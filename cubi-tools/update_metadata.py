@@ -332,9 +332,9 @@ def update_file(f, workflow_dir, metadata_dir, dryrun):
             print(f"The versions of '{f}' differ!")
             print(f"Local MD5 checksum: {local_sum}")
             print(f"Remote MD5 checksum: {ref_sum}")
-            question = user_response(f"Update '{f}'")
+            answer_is_pos = user_response(f"Update '{f}'")
 
-            if question:
+            if answer_is_pos:
                 shutil.copyfile(metadata_dir.joinpath(f), workflow_dir.joinpath(f))
                 print(f"'{f}' was updated!")
             else:
@@ -387,11 +387,11 @@ def update_pyproject_toml(workflow_dir, metadata_dir, source, dryrun):
                 )
     else:
         if not workflow_dir.joinpath("pyproject.toml").is_file():
-            question = user_response(
+            answer_is_pos = user_response(
                 "There is no 'pyproject.toml' in your folder. Add 'pyproject.toml'"
             )
 
-            if question:
+            if answer_is_pos:
                 shutil.copyfile(
                     metadata_dir.joinpath("pyproject.toml"),
                     workflow_dir.joinpath("pyproject.toml"),
@@ -409,14 +409,14 @@ def update_pyproject_toml(workflow_dir, metadata_dir, source, dryrun):
             new_pyproject_toml = comparison[2]
 
             if metadata_version != workflow_version:
-                question = user_response(
+                answer_is_pos = user_response(
                     "\nYou updated your local repo with the 'template-metadata-files' "
                     f"in branch/version tag '{source}'."
                     "\nDo you want to update the metadata files version in "
                     "'pyproject.toml'"
                 )
 
-                if question:
+                if answer_is_pos:
                     with open(
                         pathlib.Path(workflow_dir, "pyproject.toml"),
                         "w",
