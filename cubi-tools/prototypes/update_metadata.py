@@ -9,9 +9,6 @@ import hashlib
 import toml
 
 
-sys.tracebacklimit = -1
-
-
 def main():
     """
     Main function of the 'update-metadata.py' script.
