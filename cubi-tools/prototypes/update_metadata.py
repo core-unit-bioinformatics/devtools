@@ -96,6 +96,11 @@ def main():
 
 def parse_command_line():
     """
+    TODO: the 'project-dir' parameter is misleading; CUBI workflows
+    can also be updated with this script (or any other repo w/ metadata)
+    TODO: the 'source' parameter is misleading / the name too generic,
+    this should be something like "branch or tag", which is the intended meaning
+
     Collection of the various options of the 'update-metadata.py' script.
     """
     parser = argp.ArgumentParser(
@@ -184,6 +189,7 @@ def clone(workflow_dir, project_dir, ref_repo, source, metadata_dir, dryrun):
                 "The requested branch/version tag (default: main) is present "
                 "and is getting updated via 'git pull -all' .\n"
             )
+            # TODO: full code duplication with section below - refactor!
             command = [
                 "git",
                 "pull",
@@ -217,6 +223,7 @@ def clone(workflow_dir, project_dir, ref_repo, source, metadata_dir, dryrun):
             ), f"The branch or version tag named '{source}' doesn't exist"
     else:
         if metadata_dir.is_dir():
+            # TODO: see above - code dupliaction
             command = [
                 "git",
                 "pull",
@@ -282,6 +289,9 @@ def clone(workflow_dir, project_dir, ref_repo, source, metadata_dir, dryrun):
 
 def get_local_checksum(workflow_dir, f):
     """
+    TODO: should be refactored, is quasi-identical to 'get_ref_checksum'
+    TODO: single-letter variable name is strongly discouraged
+
     The MD5 checksum for all metadata files in the
     local project directory is determined.
     """
@@ -298,6 +308,8 @@ def get_local_checksum(workflow_dir, f):
 
 def get_ref_checksum(metadata_dir, f):
     """
+    TODO: see TODOs in 'get_local_checksum'
+
     The MD5 checksum for all metadata files in the temp folder
     for the desired branch or version tag is determined.
     """
@@ -317,6 +329,7 @@ def update_file(f, workflow_dir, metadata_dir, dryrun):
     metadata file pops up. If an update is requested it will be performed.
     """
     if dryrun:
+        # TODO: full code duplication w/ section below - refactor!
         local_sum = get_local_checksum(workflow_dir, f)
         ref_sum = get_ref_checksum(metadata_dir, f)
         if local_sum != ref_sum:
@@ -328,6 +341,7 @@ def update_file(f, workflow_dir, metadata_dir, dryrun):
         else:
             print(f"Dry run! '{f}' is up-to-date!")
     else:
+        # TODO: see above - code dup
         local_sum = get_local_checksum(workflow_dir, f)
         ref_sum = get_ref_checksum(metadata_dir, f)
         if local_sum != ref_sum:
@@ -499,6 +513,11 @@ def get_metadata_versions(metadata_target, metadata_source):
 
 def external_repo(project_dir, external, dryrun):
     """
+    TODO: this function (name) is not informative
+    TODO: the variable names are confusing; workflow and project exist
+    both in the CUBI context and are conceptually different. Here, it
+    looks like they are used interchangeably
+
     Function to create a cubi folder where the CUBI metadata files will be
     copied/updated if the user stated that the project is from external.
     """
