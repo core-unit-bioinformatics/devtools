@@ -9,7 +9,7 @@ import shutil
 import hashlib
 import toml
 
-# sys.tracebacklimit = -1
+sys.tracebacklimit = -1
 
 
 def main():
@@ -24,13 +24,10 @@ def main():
     if dryrun:
         print("\nTHIS IS A DRY RUN!!")
 
-    # report version of script
-    if args.version:
-        print(f"\nScript version: {report_script_version()}\n")
-
     # check if project directory exist:
     project_dir = pathlib.Path(args.project_dir).resolve()
-    assert project_dir.is_dir(), f"The project directory {project_dir} doesn't exist!"
+    if not project_dir.is_dir():
+        raise FileNotFoundError(f"The project directory {project_dir} doesn't exist!")
     print(f"Project directory set as: {project_dir}\n")
 
     ref_repo = args.ref_repo
@@ -54,11 +51,11 @@ def main():
     ).is_file():
         pass
     else:
-        question = user_response(
+        answer_is_pos = user_response(
             "ARE YOU SURE THIS PROJECT IS BASED ON CUBI'S "
             "'template_snakemake' REPOSITORY"
         )
-        if question:
+        if answer_is_pos:
             pass
         else:
             raise NameError(
@@ -124,12 +121,15 @@ def parse_command_line():
         "should be copied/updated.",
         required=True,
     )
+    DEFAULT_REF_REPO = (
+        "https://github.com/core-unit-bioinformatics/template-snakemake.git"
+    )
     parser.add_argument(
         "--ref-repo",
         type=str,
         nargs="?",
-        default="https://github.com/core-unit-bioinformatics/template-snakemake.git",
-        help="Reference/remote repository used to clone files.",
+        default=DEFAULT_REF_REPO,
+        help=f"Reference/remote repository used to clone files. Default: {DEFAULT_REF_REPO}",
     )
     parser.add_argument(
         "--source",
@@ -160,7 +160,8 @@ def parse_command_line():
     parser.add_argument(
         "--version",
         "-v",
-        action="store_true",
+        action="version",
+        version=report_script_version(),
         help="Displays version of this script.",
     )
     # if no arguments are given, print help
@@ -343,9 +344,9 @@ def update_file(f, project_dir, template_dir, dryrun):
             print(f"The versions of '{f}' differ!")
             print(f"Local MD5 checksum: {local_sum}")
             print(f"Remote MD5 checksum: {ref_sum}")
-            question = user_response(f"Update '{f}'")
+            answer_is_pos = user_response(f"Update '{f}'")
 
-            if question:
+            if answer_is_pos:
                 shutil.copyfile(template_dir.joinpath(f), project_dir.joinpath(f))
                 print(f"'{f}' was updated!")
             else:
@@ -408,11 +409,11 @@ def update_pyproject_toml(project_dir, template_dir, source, dryrun):
                 )
     else:
         if not project_dir.joinpath("pyproject.toml").is_file():
-            question = user_response(
+            answer_is_pos = user_response(
                 "There is no 'pyproject.toml' in your folder. Add 'pyproject.toml'"
             )
 
-            if question:
+            if answer_is_pos:
                 shutil.copyfile(
                     template_dir.joinpath("pyproject.toml"),
                     project_dir.joinpath("pyproject.toml"),
@@ -435,14 +436,14 @@ def update_pyproject_toml(project_dir, template_dir, source, dryrun):
                 template_metadata_version != project_metadata_version
                 or template_workflow_version != project_workflow_version
             ):
-                question = user_response(
+                answer_is_pos = user_response(
                     "\nYou updated your local repo with the 'template_snakemake' "
                     f"branch/version tag '{source}'."
                     "\nDo you want to update the metadata and workflow versions in "
                     "'pyproject.toml'"
                 )
 
-                if question:
+                if answer_is_pos:
                     with open(
                         pathlib.Path(project_dir, "pyproject.toml"),
                         "w",
@@ -484,14 +485,17 @@ def user_response(question, attempt=0):
     answer = input(prompt).strip().lower()
     pos = ["yes", "y", "yay"]
     neg = ["no", "n", "nay"]
-    if attempt == 3:
-        raise AttributeError("You failed 3 times to answer a simple (y/n) question!")
-    else:
-        if not (answer in pos or answer in neg):
-            print(f"That was a yes or no question, but you answered: {answer}")
-            return user_response(question, attempt)
-    if answer in pos or answer in neg:
-        return answer in pos
+    if attempt == 2:
+        print("YOU HAVE ONE LAST CHANCE TO ANSWER THIS (y/n) QUESTION!")
+    if attempt >= 3:
+        raise RuntimeError(
+            "I warned you! You failed 3 times to answer a simple (y/n)"
+            " question! Please start over!"
+        )
+    if not (answer in pos or answer in neg):
+        print(f"That was a yes or no question, but you answered: {answer}")
+        return user_response(question, attempt)
+    return answer in pos
 
 
 def fast_scandir(template_dir):
@@ -614,13 +618,27 @@ def compare_pyproject_versions(project_dir, template_dir):
     )
 
 
+def find_cubi_tools_top_level():
+    """Find the top-level folder of the cubi-tools
+    repository (starting from this script path).
+    """
+    script_path = pathlib.Path(__file__).resolve(strict=True)
+    script_folder = script_path.parent
+
+    cmd = ["git", "rev-parse", "--show-toplevel"]
+    repo_path = sp.check_output(cmd, cwd=script_folder).decode("utf-8").strip()
+    repo_path = pathlib.Path(repo_path)
+    return repo_path
+
+
 def report_script_version():
     """
     Read out of the cubi-tools script version out of the 'pyproject.toml'.
     """
-    toml_file = pathlib.Path(
-        pathlib.Path(__file__).resolve().parent.parent, "pyproject.toml"
-    )
+    cubi_tools_repo = find_cubi_tools_top_level()
+
+    toml_file = cubi_tools_repo.joinpath("pyproject.toml").resolve(strict=True)
+
     toml_file = toml.load(toml_file, _dict=dict)
     version = toml_file["cubi"]["tools"]["script"][0]["version"]
     return version
