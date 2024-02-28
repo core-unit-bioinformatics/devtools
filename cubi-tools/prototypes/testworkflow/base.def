@@ -1,0 +1,10 @@
+Bootstrap: library
+From: alpine:3.14
+
+%post
+    apk --no-cache update
+    apk --no-cache add bash bash-completion
+    mkdir /payload
+
+%environment
+    export LC_ALL=C

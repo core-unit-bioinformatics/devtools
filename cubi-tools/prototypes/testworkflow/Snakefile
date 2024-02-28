@@ -1,0 +1,75 @@
+
+IMAGE_PATH="/gpfs/project/projects/medbioinf/container/"
+
+localrules: all
+
+rule all:
+	input:
+		"results/env.txt",
+		"results/hpcmodule_env.txt",
+		"results/singularity_env.txt",
+		"results/singularity_and_hpcmodule_env.txt"
+	resources:
+		walltime = "00:00:30",
+
+rule env:
+	output:
+		"results/env.txt"
+	resources:
+		walltime = "00:01:00",
+	shell:
+		"""
+		env > {output}
+		"""
+
+rule hpcmodule_env:
+	output:
+		"results/hpcmodule_env.txt"
+	resources:
+		walltime = "00:05:00",
+	envmodules:
+		"Singularity"
+	shell:
+		"""
+		env > {output}
+		"""
+
+
+rule singularity_env:
+	"""
+	Not explicit in Snakemake documentation [v6.13.1],
+	but Singularity container URIs can be specified
+	as local files (absolute path!), and Snakemake
+	won't complain.
+	"""
+	output:
+		"results/singularity_env.txt"
+	resources:
+		walltime = "00:05:00",
+	singularity: IMAGE_PATH + "base.sif"
+	shell:
+		"""
+		env > {output}
+		"""
+
+
+rule singularity_and_hpcmodule_env:
+	"""
+	Since Singularity is not by default available
+	in $PATH on HILBERT, and Snakemake does not support
+	activating envmodules before running a container
+	(see "shell::__new__()" in snakemake/shell.py),
+	the below fails because Singularity is not executable.
+	However, even if Singularity is available, the combination
+	of "--use-envmodules" and "--use-singularity" causes
+	a fail because "module purge && module load" are prepended
+	to the shell command, which are unknown in the container.
+	"""
+	output:
+		"results/singularity_and_hpcmodule_env.txt"
+	resources:
+		walltime = "00:05:00",
+	envmodules: "Singularity"
+	singularity: IMAGE_PATH + "base.sif"
+	shell:
+		"env > {output}"
