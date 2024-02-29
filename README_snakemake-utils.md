@@ -11,10 +11,12 @@ Run the script `set_profile.py --help` to display the command line help.
 Briefly, the mode of operation is as follows:
 
 1. specify the infrastructrue (`-i`) you are targeting: `local` or `hilbert`
-2. for cluster execution, select a resource preset YAML file (`-r`) located in `profiles/<CLUSTER>/resource_presets/<PRESET>.yaml`
+2. if you plan on using Snakemake version 8.x you have to enter `-smk8` because starting with Snakemake 8.0 some options/commands have been deprecated or renamed
+3. for cluster execution, select a resource preset YAML file (`-r`) located in `profiles/<CLUSTER>/resource_presets/<PRESET>.yaml`
     - the preset equivalent to the Snakemake profile up to release/tag v1.0.0 of this repository is `mem-mb_walltime_wo-bonus.yaml`
-3. specify the values to replace the placeholders as an ordered list (`-p`). The current set of recognized placeholders are - in that order - the "project" name and the "anchor" name (context: bonus/priority points).
-4. specify the Snakemake working directory via `-w`, the profile will be copied to this folder. This file copying is done because Snakemake does not reasonably resolve paths to the files mentioned in the profile.
+    - if you activated `-smk8` make sure that you select a Snakemake 8.x adjusted YAML file located in `profiles/<CLUSTER>/resource_presets/<PRESET>_smk8.yaml`
+4. specify the values to replace the placeholders as an ordered list (`-p`). The current set of recognized placeholders are - in that order - the "project" name and the "anchor" name (context: bonus/priority points).
+5. specify the Snakemake working directory via `-w`, the profile will be copied to this folder. This file copying is done because Snakemake does not reasonably resolve paths to the files mentioned in the profile.
     - if you generate several profiles, e.g., one with and one with using bonus points, you can also specify a suffix via `-s` that will be appended to the profile folder name.
 
 Having generated your execution profile, you can run `snakemake` as follows:
