@@ -11,4 +11,7 @@ default-resources:
   - bonus=0
   - anchor=""
   - arch=""
-software-deployment-method: conda apptainer env-modules
+software-deployment-method:
+  - conda
+  - apptainer
+  - env-modules

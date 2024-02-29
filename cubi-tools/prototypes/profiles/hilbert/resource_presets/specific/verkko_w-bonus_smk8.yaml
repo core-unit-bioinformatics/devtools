@@ -1,4 +1,3 @@
-executor: cluster-generic
 cluster-generic-submit-cmd: >-
   -A {resources.project}
   -l select=1:ncpus={threads}:ngpus={resources.gpus}:mem={resources.mem_gb}g{resources.arch}
@@ -12,4 +11,7 @@ default-resources:
   - bonus=1
   - anchor="-l anchor=<PLACEHOLDER_ANCHOR>"
   - arch=""
-software-deployment-method: conda apptainer env-modules
+software-deployment-method:
+  - conda
+  - apptainer
+  - env-modules

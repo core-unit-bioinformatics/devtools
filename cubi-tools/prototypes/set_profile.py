@@ -14,38 +14,46 @@ import yaml
 
 __version__ = "3.0.0"
 
+
 def install_snakemake_executor_plugin(args):
+    """
+    If using the 'Snakemake 8' option the pip plugin
+    'snakemake-executor-plugin-cluster-generic' needs to be installed.
+    """
 
     if args.infrastructure == "local":
-        subprocess.check_call([sys.executable,
-                                "-m",
-                                "pip",
-                                "install",
-                                "snakemake-executor-plugin-cluster-generic"]
-                            )
+        subprocess.check_call(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "snakemake-executor-plugin-cluster-generic",
+            ]
+        )
     else:
         smk8_env = os.environ.copy()
         smk8_env["PIP_CONFIG_FILE"] = "/software/python/pip.conf"
-        command = [sys.executable,
-                   "-m",
-                   "pip",
-                   "install",
-                   "snakemake-executor-plugin-cluster-generic"
-                   ]
-        subprocess.check_call(command,
-                              env=smk8_env
-                            )
+        command = [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "snakemake-executor-plugin-cluster-generic",
+        ]
+        subprocess.check_call(command, env=smk8_env)
     return None
 
+
 def parse_args():
+    """
+    Collection of the various options of the 'set_profile.py' script.
+    """
 
     parser = argp.ArgumentParser(add_help=True)
 
     parser.add_argument(
-        "--version",
-        "-v",
-        action="version",
-        version=f"%(prog)s v{__version__}"
+        "--version", "-v", action="version", version=f"%(prog)s v{__version__}"
     )
 
     parser.add_argument(
@@ -107,9 +115,10 @@ def parse_args():
         action="store_true",
         default=False,
         dest="smk_version",
-        help="In the new Snakemake 8 version some commands/options have been changed/deprecated. "
-        "To select the modified Snakemake 8 settings activate this option by entering the "
-        "argument. The default option is still using Snakemake 7",
+        help="In the new Snakemake 8 version some commands/options have been "
+        "changed/deprecated. To select the modified Snakemake 8 settings activate "
+        "this option by entering the argument. The default option is still "
+        "using Snakemake 7",
     )
 
     args = parser.parse_args()
@@ -125,6 +134,7 @@ def pprint_cluster_config(config_string):
     of cluster config string in dumped
     YAML
     """
+
     prettified_string = ">-\n "
     for component in config_string.split():
         if component.startswith("+"):
@@ -137,6 +147,11 @@ def pprint_cluster_config(config_string):
 
 
 def replace_placeholders(placeholders, config_dump):
+    """
+    Function to check for and add placeholder replacements as space-separated
+    list of VALUES.(VALUE-1 => project (qsub -A <VALUE-1> parameter) and
+    VALUE-2 => anchor (qsub -l anchor=<VALUE-2> parameter))
+    """
 
     for pname, pvalue in placeholders.items():
         pattern = f"<PLACEHOLDER_{pname.upper()}>"
@@ -157,6 +172,9 @@ def replace_placeholders(placeholders, config_dump):
 
 
 def load_yaml(file_path):
+    """
+    Load the PRESET.YAML file
+    """
 
     with open(file_path, "rb") as yaml_file:
         content = yaml.load(yaml_file, Loader=yaml.SafeLoader)
@@ -164,6 +182,9 @@ def load_yaml(file_path):
 
 
 def load_base_profile(profile_root, smk8):
+    """
+    Load the base_profile YAML file, depending on Snkamemake version
+    """
 
     if not smk8:
         base_profile = profile_root.joinpath("base.yaml").resolve(strict=True)
@@ -175,6 +196,9 @@ def load_base_profile(profile_root, smk8):
 
 
 def prepare_local_profile(profile_root, smk8):
+    """
+    Prepare the local profile config.yaml
+    """
 
     local_cpus = mp.cpu_count()
     config = load_base_profile(profile_root, smk8)
@@ -184,6 +208,9 @@ def prepare_local_profile(profile_root, smk8):
 
 
 def prepare_cluster_profile(profile_root, smk8, rsrc_preset, placeholders):
+    """
+    Prepare the cluster profile config.yaml
+    """
 
     copy_files = list(profile_root.joinpath("cluster_utils").glob("*"))
     assert len(copy_files) == 3
@@ -223,6 +250,10 @@ def prepare_cluster_profile(profile_root, smk8, rsrc_preset, placeholders):
 
 
 def main():
+    """
+    Main function of the 'set_profile.py' script.
+    """
+
     args = parse_args()
     smk8 = args.smk_version
 
@@ -236,7 +267,7 @@ def main():
     placeholders = dict((k, v) for k, v in zip(known_placeholders, args.placeholders))
 
     if args.infrastructure == "local":
-        profile_cfg = prepare_local_profile(profile_root,smk8)
+        profile_cfg = prepare_local_profile(profile_root, smk8)
         copy_files = []
         placeholders = {"project": "local"}
     elif args.infrastructure in ["hilbert"]:

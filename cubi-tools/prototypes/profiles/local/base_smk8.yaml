@@ -8,5 +8,7 @@ restart-times: 1
 rerun-incomplete: true
 nolock: true
 conda-frontend: mamba
-software-deployment-method: conda apptainer
+software-deployment-method:
+  - conda
+  - apptainer
 

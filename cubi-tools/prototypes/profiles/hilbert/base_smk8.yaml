@@ -4,7 +4,6 @@
 # to be loaded before the Snakemake job execution.
 # To deactivate that behavior, add the parameter
 # ++no-singularity-module
-executor: cluster-generic
 cluster-generic-submit-cmd: >-
   pbs-submit.py ++mkdirs log/cluster_jobs/err,log/cluster_jobs/out
   -e log/cluster_jobs/err/{rule}.{jobid}.stderr
