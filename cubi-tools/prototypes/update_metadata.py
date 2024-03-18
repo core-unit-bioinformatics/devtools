@@ -98,7 +98,7 @@ def parse_command_line():
     """
     parser = argp.ArgumentParser(
         description="Add or update metadata files for your repository. "
-        "Example: python3 add-update-metadata.py --update-dir path/to/repo"
+        "Example: python3 add-update-metadata.py --working-dir path/to/repo"
     )
     parser.add_argument(
         "--working-dir",
@@ -168,11 +168,11 @@ def clone(metadata_target, working_dir, ref_repo, branch, metadata_branch, dryru
     getting updated via a 'git pull --all' command. If that is not the case,
     the 'template-metadata-files' repo will be cloned parallel to the project
     directory unless the branch or version tag don't exist,
-    then an AssertionError will be called to stop the script.
+    then an FileNotFoundError will be called to stop the script.
     """
     if dryrun:
         if not metadata_branch.is_dir():
-            raise NameError(
+            raise FileNotFoundError(
                 "The 'template-metadata-files' repo needs to be present "
                 f"parallel to the project directory {working_dir}.\n"
                 "In a live run the 'template-metadata-files' repo would "
@@ -217,16 +217,18 @@ def git_pull_template(metadata_branch, branch):
     # If the 'template-metadata-files' folder is not a Git repo
     # an error message that contains the string 'fatal:' will be thrown
     warning = "fatal:"
-    assert warning not in str(checkout_cmd.stderr.strip()), (
+    if warning in str(checkout_cmd.stderr.strip()):
+        raise FileNotFoundError(
         "The folder 'template-metadata-files' is not a git repository! "
         "For this script to work either delete the folder or move it!!"
-    )
+        )
     # If you try to clone a repo/branch/tag that doesn't exist
     # Git will throw an error message that contains the string 'error:'
     error = "error:"
-    assert error not in str(
-        checkout_cmd.stderr.strip()
-    ), f"The branch or version tag named '{branch}' doesn't exist"
+    if error in str(checkout_cmd.stderr.strip()):
+        raise FileNotFoundError(
+        f"The branch or version tag named '{branch}' doesn't exist"
+        )
     return None
 
 
@@ -253,10 +255,11 @@ def git_clone_template(ref_repo, metadata_branch, metadata_target, branch):
     # If the 'template-metadata-files' folder is not a Git repo
     # an error message that contains the string 'fatal:' will be thrown
     warning = "fatal:"
-    assert warning not in str(clone_cmd.stderr.strip()), (
+    if warning in str(clone_cmd.stderr.strip()):
+        raise FileNotFoundError(
         "The repository you entered or the branch or version tag "
         f"named '{branch}' doesn't exist"
-    )
+        )
     command_checkout = ["git", "checkout", "".join({branch}), "-q"]
     sp.run(
         command_checkout,
@@ -272,7 +275,8 @@ def calculate_md5_checksum(file_path):
     for the template-metadata branch or version tag is determined.
 
     Args:
-        file_path (pathlib.Path): either the path to metadata_target or metadata_branch
+        file_path (pathlib.Path): either the path to file in metadata_target
+                                  or metadata_branch
         file_to_update (list): metadata files to update
 
     Returns:
