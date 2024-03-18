@@ -46,19 +46,17 @@ def main():
     # detect if workflow is based on CUBI's template_snakemake repo
     # The file '/workflow/rules/commons/10_constants.smk' should be present
     # if template_snakemake was used to create project folder
-    if pathlib.Path(
-        str(workflow_target) + "/workflow/rules/commons/10_constants.smk"
-    ).is_file():
-        pass
-    else:
+    if (
+        not pathlib.Path(workflow_target)
+        .joinpath("workflow", "rules", "commons", "10_constants.smk")
+        .is_file()
+    ):
         answer_is_pos = user_response(
             "ARE YOU SURE THIS PROJECT IS BASED ON CUBI'S "
             "'template_snakemake' REPOSITORY"
         )
-        if answer_is_pos:
-            pass
-        else:
-            raise NameError(
+        if not answer_is_pos:
+            raise Exception(
                 "This project is not based on CUBI's 'template_snakemake'. "
                 "No changes have been made!"
             )
@@ -68,19 +66,21 @@ def main():
     clone(workflow_target, ref_repo, branch, workflow_branch, dryrun)
 
     # Call function to create the list of files and folders that
-    # should be made/copied/updated
-    update_files = update_file_list(workflow_branch, metadata, dryrun)[0]
+    # should be made/copied/updated:
+    # Function creates tuple with 2 entries:
+    # [0] = files to be updated
+    # [1] = subfolders present in workflow branch
+    update_information = update_file_list(workflow_branch, metadata, dryrun)
 
-    dirs_in_template = update_file_list(workflow_branch, metadata, dryrun)[1]
     dirs_to_make = [
         path.replace(str(workflow_branch), str(workflow_target))
-        for path in dirs_in_template
+        for path in update_information[1]
     ]
     for directories in dirs_to_make:
         os.makedirs(directories, exist_ok=True)
 
     # Updating routine of the metadata files
-    for file_to_update in update_files:
+    for file_to_update in update_information[0]:
         if file_to_update == "pyproject.toml":
             update_pyproject_toml(workflow_target, workflow_branch, branch, dryrun)
         else:
@@ -180,11 +180,11 @@ def clone(workflow_target, ref_repo, branch, workflow_branch, dryrun):
     getting updated via a 'git pull --all' command. If that is not the case,
     the 'template-snakemake' repo will be cloned parallel to the project
     directory unless the branch or version tag don't exist,
-    then an AssertionError will be called to stop the script.
+    then an FileNotFoundError will be called to stop the script.
     """
     if dryrun:
         if not workflow_branch.is_dir():
-            raise NameError(
+            raise FileNotFoundError(
                 "The 'template-metadata-files' repo needs to be present "
                 f"parallel to the project directory {workflow_target}.\n"
                 "In a live run the 'template-metadata-files' repo would "
@@ -229,16 +229,18 @@ def git_pull_template(workflow_branch, branch):
     # If the 'template-metadata-files' folder is not a Git repo
     # an error message that contains the string 'fatal:' will be thrown
     warning = "fatal:"
-    assert warning not in str(checkout_cmd.stderr.strip()), (
-        "The folder 'template-metadata-files' is not a git repository! "
-        "For this script to work either delete the folder or move it!!"
-    )
+    if warning in str(checkout_cmd.stderr.strip()):
+        raise FileNotFoundError(
+            "The folder 'template-metadata-files' is not a git repository! "
+            "For this script to work either delete the folder or move it!!"
+        )
     # If you try to clone a repo/branch/tag that doesn't exist
     # Git will throw an error message that contains the string 'error:'
     error = "error:"
-    assert error not in str(
-        checkout_cmd.stderr.strip()
-    ), f"The branch or version tag named '{branch}' doesn't exist"
+    if error in str(checkout_cmd.stderr.strip()):
+        raise FileNotFoundError(
+            f"The branch or version tag named '{branch}' doesn't exist"
+        )
     return None
 
 
@@ -265,10 +267,11 @@ def git_clone_template(ref_repo, workflow_branch, workflow_target, branch):
     # If the 'template-metadata-files' folder is not a Git repo
     # an error message that contains the string 'fatal:' will be thrown
     warning = "fatal:"
-    assert warning not in str(clone_cmd.stderr.strip()), (
-        "The repository you entered or the branch or version tag "
-        f"named '{branch}' doesn't exist"
-    )
+    if warning in str(clone_cmd.stderr.strip()):
+        raise FileNotFoundError(
+            "The repository you entered or the branch or version tag "
+            f"named '{branch}' doesn't exist"
+        )
     command_checkout = ["git", "checkout", "".join({branch}), "-q"]
     sp.run(
         command_checkout,
@@ -379,15 +382,13 @@ def update_pyproject_toml(workflow_target, workflow_branch, branch, dryrun):
         pyproject_versions = get_pyproject_versions(workflow_target, workflow_branch)
         # Just to clearly state which information/files are generated by the
         # function 'get_metadata_versions(metadata_branch, metadata_target)':
-        branch_metadata_version = pyproject_versions[
-            0
-        ]  # Metadata version of the branch (str)
-        target_metadata_version = pyproject_versions[
-            1
-        ]  # Metadata version of the target (str)
-        branch_workflow_version = pyproject_versions[
-            2
-        ]  # Target pyproject toml w/ updated metadata version (dict)
+
+        # Metadata version of the branch (str):
+        branch_metadata_version = pyproject_versions[0]
+        # Metadata version of the target (str):
+        target_metadata_version = pyproject_versions[1]
+        # Target pyproject toml w/ updated metadata version (dict):
+        branch_workflow_version = pyproject_versions[2]
         target_workflow_version = pyproject_versions[3]
         target_pyproject = pyproject_versions[4]
 
@@ -453,7 +454,7 @@ def update_pyproject_toml(workflow_target, workflow_branch, branch, dryrun):
 
 def user_response(question, attempt=0):
     """
-    Function to evaluate the user response to the Yes or No question refarding updating
+    Function to evaluate the user response to the Yes or No question regarding updating
     the metadata files.
     """
     attempt += 1
@@ -461,6 +462,9 @@ def user_response(question, attempt=0):
     answer = input(prompt).strip().lower()
     pos = ["yes", "y", "yay"]
     neg = ["no", "n", "nay"]
+    if not (answer in pos or answer in neg):
+        print(f"That was a yes or no question, but you answered: {answer}")
+        return user_response(question, attempt)
     if attempt == 2:
         print("YOU HAVE ONE LAST CHANCE TO ANSWER THIS (y/n) QUESTION!")
     if attempt >= 3:
@@ -468,9 +472,6 @@ def user_response(question, attempt=0):
             "I warned you! You failed 3 times to answer a simple (y/n)"
             " question! Please start over!"
         )
-    if not (answer in pos or answer in neg):
-        print(f"That was a yes or no question, but you answered: {answer}")
-        return user_response(question, attempt)
     return answer in pos
 
 
@@ -479,13 +480,11 @@ def find_all_subdir_in_branch(workflow_branch):
     Function to list all subdirectories in the 'template_snakemake' repo
     to be able to create all missing subfolders.
     """
-    subfolders = [
-        branch_folder.path
-        for branch_folder in os.scandir(workflow_branch)
-        if branch_folder.is_dir()
-    ]
-    for workflow_branch in list(subfolders):
-        subfolders.extend(find_all_subdir_in_branch(workflow_branch))
+
+    subfolders = str(
+        [subdir for subdir in workflow_branch.iterdir() if subdir.is_dir()]
+    )
+
     return subfolders
 
 
@@ -494,11 +493,6 @@ def update_file_list(workflow_branch, metadata, dryrun):
     Function to create a list of files that will be updated.
     """
     files_to_update = []
-    # create a list of all files in 'template_snakemake' directory
-    workflow_files = []
-    for file in workflow_branch.rglob("*"):
-        if file.is_file():
-            workflow_files.append(str(pathlib.Path(file).relative_to(workflow_branch)))
 
     # the following files need to be excluded because they are always project specific
     excluded_files = [
@@ -506,21 +500,22 @@ def update_file_list(workflow_branch, metadata, dryrun):
         "workflow/rules/00_modules.smk",
         "workflow/rules/99_aggregate.smk",
     ]
-    workflow_files = [item for item in workflow_files if item not in excluded_files]
-    # the '.git' folder also needs to be excluded from the update list!
-    workflow_files = [item for item in workflow_files if ".git/" not in item]
+
+    # create a list of all files in 'template_snakemake' directory without the excluded
+    # files and the '.git' folder
+    workflow_files = []
+    for file in workflow_branch.rglob("*"):
+        if file.is_file():
+            workflow_files.append(str(pathlib.Path(file).relative_to(workflow_branch)))
+            for item in workflow_files[:]:
+                if item in excluded_files or ".git/" in item:
+                    workflow_files.remove(item)
+
     # I want the 'pyproject.toml' file at the end of the list and therefore I excluded
     # it initially from the list and now I append it so it will be at the end
     workflow_files.append("pyproject.toml")
 
-    subfolders = [
-        branch_folder.path
-        for branch_folder in os.scandir(workflow_branch)
-        if branch_folder.is_dir()
-    ]
-    for workflow_branch in list(subfolders):
-        subfolders.extend(find_all_subdir_in_branch(workflow_branch))
-    subfolders = [item for item in subfolders if ".git" not in item]
+    subfolders = find_all_subdir_in_branch(workflow_branch)
 
     # metadata files
     metadata_files = [
