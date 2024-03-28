@@ -1,0 +1,30 @@
+
+# Use custom submit script that, by default,
+# adds the Singularity envmodule to the jobscript
+# to be loaded before the Snakemake job execution.
+# To deactivate that behavior, add the parameter
+# ++no-singularity-module
+cluster: >-
+  pbs-submit.py ++mkdirs log/cluster_jobs/err,log/cluster_jobs/out
+  -e log/cluster_jobs/err/{rule}.{jobid}.stderr
+  -o log/cluster_jobs/out/{rule}.{jobid}.stdout
+  -N {jobid}_{rule}
+
+cluster-status: pbs-status.py
+cluster-cancel: qdel
+jobscript: pbs-jobscript.sh
+jobs: 100
+local-cores: 2
+max-jobs-per-second: 5
+immediate-submit: false
+max-status-checks-per-second: 10
+scheduler: ilp
+verbose: false
+reason: false
+latency-wait: 60
+keep-going: true
+keep-incomplete: false
+restart-times: 1
+rerun-incomplete: true
+nolock: true
+conda-frontend: mamba

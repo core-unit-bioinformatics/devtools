@@ -1,0 +1,13 @@
+cores: <MACHINE>
+scheduler: ilp
+verbose: false
+reason: false
+latency-wait: 5
+keep-going: true
+keep-incomplete: false
+restart-times: 1
+rerun-incomplete: true
+nolock: true
+conda-frontend: mamba
+use-singularity: true
+use-conda: true

@@ -1,0 +1,16 @@
+cluster: >-
+  -A {resources.project}
+  -l select=1:ncpus={threads}:ngpus={resources.gpus}:mem={resources.mem_mb}M{resources.arch}
+  -l walltime={resources.time_hrs}:59:59
+  -l bonus={resources.bonus}
+default-resources:
+  - project=<PLACEHOLDER_PROJECT>
+  - mem_mb=1024
+  - time_hrs=1
+  - gpus=0
+  - bonus=0
+  - anchor=""
+  - arch=""
+use-envmodules: true
+use-singularity: true
+use-conda: true

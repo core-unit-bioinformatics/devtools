@@ -1,0 +1,17 @@
+cluster-generic-submit-cmd: >-
+  -A {resources.project}
+  -l select=1:ncpus={threads}:ngpus={resources.gpus}:mem={resources.mem_gb}g{resources.arch}
+  -l walltime={resources.time_h}:59:59
+  -l bonus={resources.bonus} {resources.anchor}
+default-resources:
+  - project=<PLACEHOLDER_PROJECT>
+  - mem_gb=1
+  - time_h=1
+  - gpus=0
+  - bonus=1
+  - anchor="-l anchor=<PLACEHOLDER_ANCHOR>"
+  - arch=""
+software-deployment-method:
+  - conda
+  - apptainer
+  - env-modules
