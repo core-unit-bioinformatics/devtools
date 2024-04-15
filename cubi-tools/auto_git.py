@@ -148,6 +148,13 @@ def parse_command_line():
         dest="no_config",
         help="Do not configure user name and email for git repository. Default: False",
     )
+    parser.add_argument(
+        "--quiet", "-q",
+        action="store_true",
+        default=False,
+        dest="quiet",
+        help="If set, do not print usage hints at the end."
+    )
     args = parser.parse_args()
 
     if not args.no_config:
@@ -377,6 +384,25 @@ def main():
         set_push_targets(git_infos, wd, args.dryrun)
     if not args.no_config:
         set_git_identity(git_infos, wd, args.identities, args.dryrun)
+
+    if not args.quiet:
+        hints = (
+            "\n=====\n"
+            "Usage hints:\n"
+            "(1) If you just configured a new repo involving the GitHub remote,\n"
+            "do not forget to create an empty repo with the same name on github.com\n"
+            "to be able to push the new repo.\n"
+            "(2) If you just configured a new repo or created a new branch w/o\n"
+            "counterpart in the remote(s), remeber to 'push' with the option\n"
+            "'-u/--set-upstream' for every new (!) branch:\n"
+            "'git push -u REMOTE-NAME BRANCH-NAME'\n"
+            "For example:\n"
+            "git push -u all main\n"
+            "git push -u github dev\n"
+            "=====\n"
+        )
+        print(hints)
+
     return 0
 
 
