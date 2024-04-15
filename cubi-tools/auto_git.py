@@ -85,7 +85,7 @@ def parse_command_line():
         type=lambda x: pl.Path(x).resolve(strict=True),
         default=None,
         dest="norm",
-        help="Normalize git remotes.",
+        help="Normalize git remotes for existing repositories.",
     )
     parser.add_argument(
         "--init-preset",
