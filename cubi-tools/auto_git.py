@@ -69,7 +69,10 @@ def parse_command_line():
         type=str,
         default=None,
         dest="clone",
-        help="Full (remote) git path to clone in the form of: git@<remote>:<user>/<repo>.git",
+        help=(
+            "Full (remote) git path to clone in the form of: git@<remote>:<user-or-org>/<repo>.git "
+            "Example: auto_git.py --clone git@github.com:core-unit-bioinformatics/cubi-tools.git"
+        )
     )
     mutex.add_argument(
         "--init",
@@ -77,7 +80,10 @@ def parse_command_line():
         type=lambda x: pl.Path(x).resolve(strict=False),
         default=None,
         dest="init",
-        help="Path to the new repository to initialize.",
+        help=(
+            "Path to the new repository to initialize. "
+            "Example: auto_git.py --init PATH-TO-NEW-REPO [must not exist] --init-preset PRESET"
+        )
     )
     mutex.add_argument(
         "--norm",
@@ -85,7 +91,10 @@ def parse_command_line():
         type=lambda x: pl.Path(x).resolve(strict=True),
         default=None,
         dest="norm",
-        help="Normalize git remotes for existing repositories.",
+        help=(
+            "Normalize git remotes for existing repositories. "
+            "Example: auto_git.py --norm PATH-TO-EXISTING-REPO"
+        )
     )
     parser.add_argument(
         "--init-preset",
