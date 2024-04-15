@@ -91,10 +91,10 @@ def parse_command_line():
         "--init-preset",
         "-ip",
         type=str,
-        choices=["github", "githhu"],
+        choices=["github", "githhu", "all"],
         default="githhu",
         dest="init_preset",
-        help="Preset for git init operation: github or githhu",
+        help="Preset for git init operation: github / githhu / all [both remotes]",
     )
     parser.add_argument(
         "--dry-run",
@@ -123,7 +123,7 @@ def parse_command_line():
         action="store_true",
         default=False,
         dest="no_all",
-        help="Do not configure multiple push targets / do not add 'all' remote. Default: False",
+        help="Do not configure multiple push targets / do not add virtual 'all' remote. Default: False",
     )
     parser.add_argument(
         "--no-user-config",
@@ -148,6 +148,28 @@ def parse_command_line():
 
     if args.init is not None and args.init_preset == "githhu":
         setattr(args, "no_all", True)
+
+    # change in response to gh#27
+    if args.init is not None and args.init_preset == "github":
+        if not getattr(args, "no_all"):
+            err_msg = (
+                "You selected the init preset 'github' with the virtual "
+                "'all' remote.\nThis probably does not make sense because "
+                "the CUBI development guidelines state that (standard) "
+                "repositories have to exist both on github and on gitlab/HHU.\n"
+                "If you are sure you are doing the right thing, please "
+                "explicitly set the option '--no-all-target' together with "
+                "the 'github' preset."
+            )
+            raise ValueError(err_msg)
+
+    # change in response to gh#27
+    if args.init is not None and args.init_preset == "all":
+        if getattr(args, "no_all"):
+            raise ValueError("Cannot combine init preset 'all' with option '--no-all-target'")
+        # under the hood, just reset the init preset to 'github'
+        # if the user selected 'all', which is the default behavior.
+        setattr(args, "init_preset", "github")
 
     return args
 
