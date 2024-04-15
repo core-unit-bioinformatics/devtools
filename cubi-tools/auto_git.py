@@ -113,8 +113,13 @@ def parse_command_line():
         type=lambda x: pl.Path(x).resolve(strict=False),
         dest="identities",
         default=default_git_id_folder,
-        help="Path to folder with github identities for remotes. "
-        f"Default: {default_git_id_folder}/*.id",
+        help=(
+            "Path to folder with git identity files for remotes. "
+            "See README for details; in brief, an identity file for a "
+            "remote is a 2-line text file stating the "
+            "(1) author name and (2) email. "
+            f"Default: {default_git_id_folder}/*.id"
+        )
     )
     parser.add_argument(
         "--no-all-target",
