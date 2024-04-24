@@ -10,6 +10,9 @@ import hashlib
 import toml
 
 
+__prog__ = "update_workflow.py"
+
+
 def main():
     """
     Main function of the 'update-workflow.py' script.
@@ -111,6 +114,7 @@ def parse_command_line():
     Collection of the various options of the 'update-workflow.py' script.
     """
     parser = argp.ArgumentParser(
+        prog=__prog__,
         description="Add or update workflow files for your repository. "
         "Example: python3 update_workflow.py --workflow-dir path/to/repo"
     )
@@ -633,7 +637,17 @@ def report_script_version():
     toml_file = cubi_tools_repo.joinpath("pyproject.toml").resolve(strict=True)
 
     toml_file = toml.load(toml_file, _dict=dict)
-    version = toml_file["cubi"]["tools"]["script"][0]["version"]
+
+    cubi_tools_scripts = toml_file["cubi"]["tools"]["script"]
+    version = None
+    for cubi_tool in cubi_tools_scripts:
+        if cubi_tool["name"] == __prog__:
+            version = cubi_tool["version"]
+    if version is None:
+        raise RuntimeError(
+            f"Cannot identify script version from pyproject cubi-tools::scripts entry: {cubi_tools_scripts}"
+        )
+
     return version
 
 
