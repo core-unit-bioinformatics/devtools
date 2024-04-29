@@ -8,6 +8,7 @@ import shutil
 import hashlib
 import toml
 
+__prog__ = "update_metadata.py"
 
 def main():
     """
@@ -32,11 +33,18 @@ def main():
     external = args.external
 
     # The location of the 'template-metadata-files" folder holding branch/version tag
-    # needs to be parallel the project directory
-    metadata_branch = pathlib.Path(
-        pathlib.Path(f"{working_dir}").resolve().parents[0],
-        "template-metadata-files",
-    ).resolve()
+    # needs to be parallel the project directory or provided via '--ref-repo'.
+    if ref_repo != DEFAULT_REF_REPO:
+        metadata_branch = pathlib.Path(args.ref_repo).resolve()
+        if not metadata_branch.is_dir():
+            raise FileNotFoundError(f"The reference directory {metadata_branch} does not exist.")
+        print(f"Reference directory set as: {metadata_branch}")
+    else:
+        metadata_branch = pathlib.Path(
+            pathlib.Path(f"{working_dir}").resolve().parents[0],
+            "template-metadata-files",
+        ).resolve()
+        print(f"Reference directory set as: {metadata_branch}")
 
     # detect if its a external workflow
     if external:
@@ -97,6 +105,7 @@ def parse_command_line():
     Collection of the various options of the 'update-metadata.py' script.
     """
     parser = argp.ArgumentParser(
+        prog=__prog__,
         description="Add or update metadata files for your repository. "
         "Example: python3 add-update-metadata.py --working-dir path/to/repo"
     )
@@ -109,6 +118,7 @@ def parse_command_line():
         required=True,
     )
 
+    global DEFAULT_REF_REPO
     DEFAULT_REF_REPO = (
         "https://github.com/core-unit-bioinformatics/template-metadata-files.git"
     )
@@ -173,10 +183,12 @@ def clone(metadata_target, working_dir, ref_repo, branch, metadata_branch, dryru
     if dryrun:
         if not metadata_branch.is_dir():
             raise FileNotFoundError(
-                "The 'template-metadata-files' repo needs to be present "
-                f"parallel to the project directory {working_dir}.\n"
-                "In a live run the 'template-metadata-files' repo would "
-                f"be created at {metadata_branch}.\n"
+                "For default usage the 'template-metadata-files' repo needs to be "
+                f"present parallel to the project directory {working_dir}.\n"
+                "If you provided a local location via the '--ref-repo' option make sure "
+                "it's present and a git repository."
+                #"In a live run the 'template-metadata-files' repo would "
+                #f"be created at {metadata_branch}.\n"
             )
         else:
             print(
@@ -219,8 +231,11 @@ def git_pull_template(metadata_branch, branch):
     warning = "fatal:"
     if warning in str(checkout_cmd.stderr.strip()):
         raise FileNotFoundError(
-        "The folder 'template-metadata-files' is not a git repository! "
-        "For this script to work either delete the folder or move it!!"
+        f"The folder {metadata_branch} is not a git repository! "
+        "If you provided the location via the '--ref-repo' option make sure "
+        "it's a git repository or don't use the '--ref-repo' option. \n"
+        "Otherwise delete/move the 'template-metadata-files' folder, which is "
+        "located parallel to the repository that is getting updated and rerun!!"
         )
     # If you try to clone a repo/branch/tag that doesn't exist
     # Git will throw an error message that contains the string 'error:'
@@ -257,7 +272,7 @@ def git_clone_template(ref_repo, metadata_branch, metadata_target, branch):
     warning = "fatal:"
     if warning in str(clone_cmd.stderr.strip()):
         raise FileNotFoundError(
-        "The repository you entered or the branch or version tag "
+        "The repository or folder you entered or the branch or version tag "
         f"named '{branch}' doesn't exist"
         )
     command_checkout = ["git", "checkout", "".join({branch}), "-q"]
@@ -406,12 +421,12 @@ def update_pyproject_toml(metadata_target, metadata_branch, branch, dryrun):
                         text_file.write(toml.dumps(target_pyproject, encoder=None))
                     print(
                         f"Metadata version in 'pyproject.toml' was updated from version"
-                        f" '{branch_version}' to version '{target_version}'!"
+                        f" '{target_version}' to version '{branch_version}'!"
                     )
                 else:
                     print(
                         "'pyproject.toml' was NOT updated from version "
-                        f"'{branch_version}' to version '{target_version}'!"
+                        f"'{target_version}' to version '{branch_version}'!"
                     )
         else:
             print("\nMetadata version in 'pyproject.toml' is up-to-date!\n")
@@ -518,7 +533,15 @@ def report_script_version():
     toml_file = cubi_tools_repo.joinpath("pyproject.toml").resolve(strict=True)
 
     toml_file = toml.load(toml_file, _dict=dict)
-    version = toml_file["cubi"]["tools"]["script"][0]["version"]
+    cubi_tools_scripts = toml_file["cubi"]["tools"]["script"]
+    version = None
+    for cubi_tool in cubi_tools_scripts:
+        if cubi_tool["name"] == __prog__:
+            version = cubi_tool["version"]
+    if version is None:
+        raise RuntimeError(
+            f"Cannot identify script version from pyproject cubi-tools::scripts entry: {cubi_tools_scripts}"
+        )
     return version
 
 
