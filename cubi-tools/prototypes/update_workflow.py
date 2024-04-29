@@ -37,14 +37,19 @@ def main():
     branch = args.branch
     metadata = args.metadata
 
-    # Since using the online github repo directly to update the local workflow files
-    # is resulting in hitting an API rate limit fairly quickly a local copy is needed.
-    # The location of the template_snakemake folder holding branch/version tag
-    # of interest is on the same level as the project directory
-    workflow_branch = pathlib.Path(
+    # The location of the 'template-snakemake" folder holding branch/version tag
+    # needs to be parallel the project directory or provided via '--ref-repo'.
+    if ref_repo != DEFAULT_REF_REPO:
+        workflow_branch = pathlib.Path(args.ref_repo).resolve()
+        if not workflow_branch.is_dir():
+            raise FileNotFoundError(f"The reference directory {workflow_branch} does not exist.")
+        print(f"Reference directory set as: {workflow_branch}")
+    else:
+        workflow_branch = pathlib.Path(
         pathlib.Path(f"{workflow_target}").resolve().parents[0],
-        "template-snakemake",
-    ).resolve()
+            "template-snakemake",
+        ).resolve()
+        print(f"Reference directory set as: {workflow_branch}")
 
     # detect if workflow is based on CUBI's template_snakemake repo
     # The file '/workflow/rules/commons/10_constants.smk' should be present
@@ -59,7 +64,7 @@ def main():
             "'template_snakemake' REPOSITORY"
         )
         if not answer_is_pos:
-            raise Exception(
+            raise SystemExit(
                 "This project is not based on CUBI's 'template_snakemake'. "
                 "No changes have been made!"
             )
@@ -126,6 +131,7 @@ def parse_command_line():
         "should be copied/updated.",
         required=True,
     )
+    global DEFAULT_REF_REPO
     DEFAULT_REF_REPO = (
         "https://github.com/core-unit-bioinformatics/template-snakemake.git"
     )
@@ -189,10 +195,10 @@ def clone(workflow_target, ref_repo, branch, workflow_branch, dryrun):
     if dryrun:
         if not workflow_branch.is_dir():
             raise FileNotFoundError(
-                "The 'template-metadata-files' repo needs to be present "
-                f"parallel to the project directory {workflow_target}.\n"
-                "In a live run the 'template-metadata-files' repo would "
-                f"be created at {workflow_branch}.\n"
+                "For default usage the 'template-metadata-files' repo needs to be "
+                f"present parallel to the project directory {workflow_target}.\n"
+                "If you provided a local location via the '--ref-repo' option make sure "
+                "it's present and a git repository."
             )
         else:
             print(
@@ -235,8 +241,11 @@ def git_pull_template(workflow_branch, branch):
     warning = "fatal:"
     if warning in str(checkout_cmd.stderr.strip()):
         raise FileNotFoundError(
-            "The folder 'template-metadata-files' is not a git repository! "
-            "For this script to work either delete the folder or move it!!"
+        f"The folder {workflow_branch} is not a git repository! "
+        "If you provided the location via the '--ref-repo' option make sure "
+        "it's a git repository or don't use the '--ref-repo' option. \n"
+        "Otherwise delete/move the 'template-snakemake' folder, which is "
+        "located parallel to the repository that is getting updated and rerun!!"
         )
     # If you try to clone a repo/branch/tag that doesn't exist
     # Git will throw an error message that contains the string 'error:'
@@ -273,7 +282,7 @@ def git_clone_template(ref_repo, workflow_branch, workflow_target, branch):
     warning = "fatal:"
     if warning in str(clone_cmd.stderr.strip()):
         raise FileNotFoundError(
-            "The repository you entered or the branch or version tag "
+            "The repository or folder you entered or the branch or version tag "
             f"named '{branch}' doesn't exist"
         )
     command_checkout = ["git", "checkout", "".join({branch}), "-q"]
