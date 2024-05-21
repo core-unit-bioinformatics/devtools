@@ -42,11 +42,13 @@ def main():
     if ref_repo != DEFAULT_REF_REPO:
         workflow_branch = pathlib.Path(args.ref_repo).resolve()
         if not workflow_branch.is_dir():
-            raise FileNotFoundError(f"The reference directory {workflow_branch} does not exist.")
+            raise FileNotFoundError(
+                f"The reference directory {workflow_branch} does not exist."
+            )
         print(f"Reference directory set as: {workflow_branch}")
     else:
         workflow_branch = pathlib.Path(
-        pathlib.Path(f"{workflow_target}").resolve().parents[0],
+            pathlib.Path(f"{workflow_target}").resolve().parents[0],
             "template-snakemake",
         ).resolve()
         print(f"Reference directory set as: {workflow_branch}")
@@ -81,9 +83,10 @@ def main():
     update_information = update_file_list(workflow_branch, metadata, dryrun)
 
     dirs_to_make = [
-        path.replace(str(workflow_branch), str(workflow_target))
-        for path in update_information[1]
+        workflow_target / dir_path.relative_to(workflow_branch)
+        for dir_path in update_information[1]
     ]
+
     for directories in dirs_to_make:
         os.makedirs(directories, exist_ok=True)
 
@@ -121,7 +124,7 @@ def parse_command_line():
     parser = argp.ArgumentParser(
         prog=__prog__,
         description="Add or update workflow files for your repository. "
-        "Example: python3 update_workflow.py --workflow-dir path/to/repo"
+        "Example: python3 update_workflow.py --workflow-dir path/to/repo",
     )
     parser.add_argument(
         "--workflow_dir",
@@ -140,7 +143,8 @@ def parse_command_line():
         type=str,
         nargs="?",
         default=DEFAULT_REF_REPO,
-        help=f"Reference/remote repository used to clone files. Default: {DEFAULT_REF_REPO}",
+        help="Reference/remote repository used to clone files. "
+        f"Default: {DEFAULT_REF_REPO}",
     )
     parser.add_argument(
         "--branch",
@@ -197,8 +201,8 @@ def clone(workflow_target, ref_repo, branch, workflow_branch, dryrun):
             raise FileNotFoundError(
                 "For default usage the 'template-metadata-files' repo needs to be "
                 f"present parallel to the project directory {workflow_target}.\n"
-                "If you provided a local location via the '--ref-repo' option make sure "
-                "it's present and a git repository."
+                "If you provided a local location via the '--ref-repo' option make sure"
+                " it's present and a git repository."
             )
         else:
             print(
@@ -241,11 +245,11 @@ def git_pull_template(workflow_branch, branch):
     warning = "fatal:"
     if warning in str(checkout_cmd.stderr.strip()):
         raise FileNotFoundError(
-        f"The folder {workflow_branch} is not a git repository! "
-        "If you provided the location via the '--ref-repo' option make sure "
-        "it's a git repository or don't use the '--ref-repo' option. \n"
-        "Otherwise delete/move the 'template-snakemake' folder, which is "
-        "located parallel to the repository that is getting updated and rerun!!"
+            f"The folder {workflow_branch} is not a git repository! "
+            "If you provided the location via the '--ref-repo' option make sure "
+            "it's a git repository or don't use the '--ref-repo' option. \n"
+            "Otherwise delete/move the 'template-snakemake' folder, which is "
+            "located parallel to the repository that is getting updated and rerun!!"
         )
     # If you try to clone a repo/branch/tag that doesn't exist
     # Git will throw an error message that contains the string 'error:'
@@ -491,12 +495,17 @@ def user_response(question, attempt=0):
 def find_all_subdir_in_branch(workflow_branch):
     """
     Function to list all subdirectories in the 'template_snakemake' repo
-    to be able to create all missing subfolders.
+    to be able to create all missing subfolders that doesn't belong to the
+    ".git/ .
     """
+    word_to_filter = ".git"
 
-    subfolders = str(
-        [subdir for subdir in workflow_branch.iterdir() if subdir.is_dir()]
-    )
+    subfolders = [
+        subdir
+        for subdir in workflow_branch.rglob("*")
+        if subdir.is_dir()
+        if word_to_filter not in subdir.parts
+    ]
 
     return subfolders
 
@@ -603,17 +612,11 @@ def get_pyproject_versions(workflow_target, workflow_branch):
     target_pyproject["cubi"]["metadata"]["version"] = branch_metadata_version
 
     # extracting the workflow versions:
-    branch_workflow_version = branch_pyproject["cubi"]["workflow"]["template"][
-        "version"
-    ]
-    target_workflow_version = target_pyproject["cubi"]["workflow"]["template"][
-        "version"
-    ]
+    branch_workflow_version=branch_pyproject["cubi"]["workflow"]["template"]["version"]
+    target_workflow_version=target_pyproject["cubi"]["workflow"]["template"]["version"]
     # updating the workflow version in the workflow pyproject with the workflow version
     # from the template_snakemake 'source' pyproject:
-    target_pyproject["cubi"]["workflow"]["template"][
-        "version"
-    ] = branch_workflow_version
+    target_pyproject["cubi"]["workflow"]["template"]["version"]=branch_workflow_version
 
     return (
         branch_metadata_version,
@@ -654,7 +657,8 @@ def report_script_version():
             version = cubi_tool["version"]
     if version is None:
         raise RuntimeError(
-            f"Cannot identify script version from pyproject cubi-tools::scripts entry: {cubi_tools_scripts}"
+            "Cannot identify script version from pyproject cubi-tools::scripts "
+            f"entry: {cubi_tools_scripts}"
         )
 
     return version
