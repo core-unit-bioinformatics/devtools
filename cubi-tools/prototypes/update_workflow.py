@@ -479,16 +479,19 @@ def user_response(question, attempt=0):
     answer = input(prompt).strip().lower()
     pos = ["yes", "y", "yay"]
     neg = ["no", "n", "nay"]
-    if not (answer in pos or answer in neg):
-        print(f"That was a yes or no question, but you answered: {answer}")
-        return user_response(question, attempt)
     if attempt == 2:
         print("YOU HAVE ONE LAST CHANCE TO ANSWER THIS (y/n) QUESTION!")
-    if attempt >= 3:
+    elif attempt >= 3:
         raise RuntimeError(
             "I warned you! You failed 3 times to answer a simple (y/n)"
             " question! Please start over!"
         )
+    elif not (answer in pos or answer in neg):
+        print(f"That was a yes or no question, but you answered: {answer}")
+        return user_response(question, attempt)
+    else:
+        pass
+
     return answer in pos
 
 
