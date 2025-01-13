@@ -196,6 +196,22 @@ def parse_command_line():
 
 
 def parse_git_url(url):
+    try:
+        prefix, remainder = url.split("@")
+    except ValueError:
+        assert "@" not in url
+        # this means no "@" in URL, i.e. repo was cloned
+        # via https --- must be via ssh to be useful for working
+        sys.stderr.write(
+            (
+                f"\nERROR: repository URL does not contain '@': {url}\n"
+                "The repository was likely cloned via 'https' and not via ssh.\n"
+                "Please clone/checkout the repo via ssh, e.g., by using the CUBI tools "
+                "'auto_git.py --clone' functionality. Aborting ...\n\n"
+            )
+        )
+        raise
+
     prefix, remainder = url.split("@")
     remainder, suffix = remainder.rsplit(".", 1)
     assert prefix == suffix == "git"
