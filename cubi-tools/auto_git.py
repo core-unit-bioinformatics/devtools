@@ -115,7 +115,7 @@ def parse_command_line():
         default=False,
         help="Just print what you would do, but don't do it",
     )
-    default_git_id_folder = pl.Path.home().joinpath(".identities")
+    default_git_id_folder = pl.Path.home().joinpath(".cubi-tools")
     parser.add_argument(
         "--git-identities",
         "-g",
